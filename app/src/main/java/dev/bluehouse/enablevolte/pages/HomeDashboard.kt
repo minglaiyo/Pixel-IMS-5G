@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bluehouse.enablevolte.*
+import dev.bluehouse.enablevolte.R
 import dev.bluehouse.enablevolte.components.GlassDepth
 import dev.bluehouse.enablevolte.components.LiquidPane
 import dev.bluehouse.enablevolte.components.liquidGlass

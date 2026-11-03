@@ -381,7 +381,7 @@ private fun RootVoWifiPanel(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                val vowifiFailure = status.failureReasonRes?.let { stringResource(it) } ?: status.failureReason
+                val vowifiFailure = status.failureReasonRes?.let { stringResource(it) }.orEmpty()
                 if (vowifiFailure.isNotBlank() && !status.isVoWifiActive) {
                     Spacer(Modifier.height(8.dp))
                     Text(vowifiFailure, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

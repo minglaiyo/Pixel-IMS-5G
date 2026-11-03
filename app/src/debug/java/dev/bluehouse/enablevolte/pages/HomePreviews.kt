@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import dev.bluehouse.enablevolte.*
+import dev.bluehouse.enablevolte.R
 import dev.bluehouse.enablevolte.components.AppBackdrop
 import dev.bluehouse.enablevolte.ui.theme.EnableVoLTETheme
 import dev.bluehouse.enablevolte.ui.theme.ThemeMode
@@ -14,14 +15,14 @@ import dev.bluehouse.enablevolte.ui.theme.ThemeMode
 private fun homeFixture(): SetupState = SetupState(
     loading = false, carrier = "Dialog", checkedAt = 1792745256000,
     checks = listOf(
-        ReadinessCheck("privilege", "Root access", "Root service connected", CheckStatus.PASS),
-        ReadinessCheck("ims", "Device supports IMS", "Reported by the platform", CheckStatus.PASS),
-        ReadinessCheck("volte", "VoLTE enabled", "Carrier configuration allows LTE calling. IMS registration is checked separately.", CheckStatus.PASS),
-        ReadinessCheck("nr_mode", "5G mode", "NSA and SA are enabled in carrier configuration.", CheckStatus.PASS),
-        ReadinessCheck("bands", "Band selection", "LTE and NR use automatic band selection.", CheckStatus.PASS, FixAction.OPEN_BANDS, "Choose bands", false),
-        ReadinessCheck("patch", "Modem region patch", "Patched carrier database mounted", CheckStatus.PASS),
-        ReadinessCheck("endc", "5G connected", "5G is advertised as available, but no active 5G link is confirmed. The reason needs further diagnosis.", CheckStatus.FAIL),
-        ReadinessCheck("ims_reg", "IMS registered", "IMS is registered over LTE.", CheckStatus.PASS, blocking = false),
+        ReadinessCheck(id = "privilege", titleRes = R.string.setup_check_privilege_root_title, detailRes = R.string.setup_check_privilege_root_pass, status = CheckStatus.PASS),
+        ReadinessCheck(id = "ims", titleRes = R.string.setup_check_ims_title, detailRes = R.string.setup_check_ims_pass, status = CheckStatus.PASS),
+        ReadinessCheck(id = "volte", titleRes = R.string.setup_check_volte_title, detailRes = R.string.setup_check_volte_pass, status = CheckStatus.PASS),
+        ReadinessCheck(id = "nr_mode", titleRes = R.string.setup_check_nr_title, detailRes = R.string.setup_check_nr_set_to, detailArgRes = R.string.nr_nsa_sa, status = CheckStatus.PASS),
+        ReadinessCheck(id = "bands", titleRes = R.string.setup_check_bands_title, detailRes = R.string.setup_check_bands_no_lock, status = CheckStatus.PASS, fix = FixAction.OPEN_BANDS, fixLabelRes = R.string.setup_check_bands_fix, blocking = false),
+        ReadinessCheck(id = "patch", titleRes = R.string.setup_check_patch_title, detailRes = R.string.setup_check_patch_active, status = CheckStatus.PASS),
+        ReadinessCheck(id = "endc", titleRes = R.string.home_check_not_connected, detailRes = R.string.nr_advertised_no_endc, status = CheckStatus.FAIL),
+        ReadinessCheck(id = "ims_reg", titleRes = R.string.setup_check_ims_title, detailRes = R.string.network_ims_registered, detailArg = "LTE", status = CheckStatus.PASS, blocking = false),
     ),
 )
 

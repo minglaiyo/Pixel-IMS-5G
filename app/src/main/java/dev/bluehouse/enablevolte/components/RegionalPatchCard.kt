@@ -146,9 +146,9 @@ fun RegionalPatchCard(
                         stringResource(R.string.patch_card_step).uppercase(),
                         style = MaterialTheme.typography.labelMedium, color = tone,
                     )
-                    Text(if (liquidStyle) "Modem compatibility" else stringResource(R.string.patch_card_title),
+                    Text(if (liquidStyle) stringResource(R.string.patchcard_modem_compatibility) else stringResource(R.string.patch_card_title),
                         style = MaterialTheme.typography.titleLarge)
-                    if (liquidStyle) Text("Regional carrier profile", fontSize = 12.sp,
+                    if (liquidStyle) Text(stringResource(R.string.patchcard_regional_carrier_profile), fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (phase == PatchPhase.CHECKING || ui.busy) {
@@ -190,7 +190,7 @@ fun RegionalPatchCard(
             if (status != null && phase != PatchPhase.CHECKING) {
                 if (liquidStyle) {
                     val rootName = status.rootManager.ifBlank { stringResource(R.string.patch_check_magisk) }
-                    Text("${if (status.supported) "✓" else "×"} Tensor  ·  ${if (status.magiskAvailable) "✓" else "×"} $rootName  ·  ${if (status.sourceAvailable) "✓" else "×"} Modem database",
+                    Text("${if (status.supported) "✓" else "×"} ${stringResource(R.string.patch_check_device)}  ·  ${if (status.magiskAvailable) "✓" else "×"} $rootName  ·  ${if (status.sourceAvailable) "✓" else "×"} ${stringResource(R.string.patch_check_firmware)}",
                         fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Prerequisite(stringResource(R.string.patch_check_device), status.supported)

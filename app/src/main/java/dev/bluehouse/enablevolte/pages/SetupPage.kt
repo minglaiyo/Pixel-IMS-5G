@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import dev.bluehouse.enablevolte.*
+import dev.bluehouse.enablevolte.R
 import dev.bluehouse.enablevolte.components.RegionalPatchCard
 
 /** Opening page: the same reading surfaces and glass controls as the live monitor. */

@@ -461,8 +461,8 @@ object FieldTestReporter {
                     "  IMS=${rootVoWifi?.registrationLabel}; transport=${rootVoWifi?.transportLabel}; " +
                         "active-IWLAN=${rootVoWifi?.isVoWifiActive}; Wi-Fi-state=${rootVoWifi?.wifiState}",
                 )
-                if (!rootVoWifi?.failureReason.isNullOrBlank()) {
-                    appendLine("  recent modem-wide failure=${rootVoWifi?.failureReason}")
+                rootVoWifi?.failureReasonRes?.let { failureRes ->
+                    appendLine("  recent modem-wide failure=${context.getString(failureRes)}")
                 }
             }
             appendLine()
