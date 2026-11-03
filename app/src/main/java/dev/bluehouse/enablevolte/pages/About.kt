@@ -84,7 +84,7 @@ fun About() {
                     context.getString(R.string.up_to_date, BuildConfig.VERSION_NAME)
                 }
             } catch (e: Exception) {
-                status = context.getString(R.string.update_check_failed, e.message ?: "Unknown error")
+                status = context.getString(R.string.update_check_failed, e.message ?: context.getString(R.string.about_unknown_error))
             } finally {
                 checking = false
             }
@@ -256,7 +256,7 @@ fun About() {
             onClick = { UpdateManager.open(context, UPSTREAM_PROJECT) },
         )
         ClickablePropertyView(
-            label = "Tensor cfg.db research",
+            label = stringResource(R.string.about_tensor_cfgdb_research),
             value = stringResource(R.string.modem_patch_credit),
             onClick = { UpdateManager.open(context, MODEM_PATCH_REFERENCE) },
         )

@@ -121,7 +121,7 @@ fun FieldTestPage(subscriptions: List<SubscriptionInfo>) {
                 }
                 wifiIsolationSession = isolation.session
                 check(isolation.active) { isolation.message }
-                status = isolation.message
+                status = isolation.messageRes?.let { context.getString(it) } ?: isolation.message
                 if (aggressive) {
                     status = context.getString(R.string.aggressive_opening_gates)
                     withContext(Dispatchers.IO) {
@@ -135,12 +135,12 @@ fun FieldTestPage(subscriptions: List<SubscriptionInfo>) {
                             val applied = moder.applyShizukuRegionalCompatibility()
                             restoreShizukuSnapshot = true
                             restoreShizukuBands = applied.limitations.none {
-                                it.startsWith("Automatic bands unchanged")
+                                it.res == R.string.root_limit_auto_bands_unchanged
                             }
                             if (!applied.applied && applied.failedGates.isNotEmpty()) {
                                 error = context.getString(
                                     R.string.aggressive_partial,
-                                    applied.failedGates.joinToString(),
+                                    applied.failedGates.joinToString { it.resolve(context) },
                                 )
                             }
                         }

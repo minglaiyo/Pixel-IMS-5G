@@ -5,6 +5,7 @@ import android.telephony.SubscriptionInfo
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import dev.bluehouse.enablevolte.*
@@ -31,7 +32,7 @@ fun SetupPage(subscriptions: List<SubscriptionInfo>, navController: NavControlle
     }
     HomeDashboard(
         sims = subscriptions.map { HomeSim(it.subscriptionId, it.displayName?.toString()?.takeIf { it.isNotBlank() }
-            ?: liveCarrierName(it.carrierName.toString(), "${it.mccString}${it.mncString}", "Mobile network"), it.simSlotIndex + 1) },
+            ?: liveCarrierName(it.carrierName.toString(), "${it.mccString}${it.mncString}", stringResource(R.string.setup_fallback_carrier)), it.simSlotIndex + 1) },
         selectedId = subscription?.subscriptionId,
         ui = ui,
         accessMode = if (PrivilegeManager.activeMode == PrivilegeMode.ROOT) "Root" else "Shizuku",

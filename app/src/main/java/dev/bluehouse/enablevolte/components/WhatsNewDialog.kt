@@ -130,13 +130,14 @@ private fun ChangelogCard(item: ChangelogItem) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = item.title,
+                    text = if (item.titleRes != 0) stringResource(item.titleRes) else item.titleText.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
                     color = color,
                 )
-                if (item.detail.isNotBlank()) {
+                val detail = if (item.detailRes != 0) stringResource(item.detailRes) else item.detailText.orEmpty()
+                if (detail.isNotBlank()) {
                     Text(
-                        text = item.detail,
+                        text = detail,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

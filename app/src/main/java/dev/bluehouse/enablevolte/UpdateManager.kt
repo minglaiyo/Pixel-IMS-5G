@@ -108,8 +108,8 @@ object UpdateManager {
         val apkUrl = release.apkUrl ?: throw IllegalStateException("This release has no APK asset")
         val fileName = "Pixel-IMS-5G-v${release.version}-${System.currentTimeMillis()}.apk"
         val request = DownloadManager.Request(Uri.parse(apkUrl))
-            .setTitle("Pixel IMS 5G ${release.version}")
-            .setDescription("Downloading app update")
+            .setTitle(context.getString(R.string.update_download_title, release.version))
+            .setDescription(context.getString(R.string.update_download_description))
             .setMimeType("application/vnd.android.package-archive")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)

@@ -302,7 +302,7 @@ fun PixelIMSApp(
                     if (ready) {
                         runCatching {
                             subscriptions = carrierModer.subscriptions
-                        }.onFailure { privilegeError = it.message ?: "Unable to read telephony services as root" }
+                        }.onFailure { privilegeError = it.message ?: context.getString(R.string.home_unable_to_read_telephony_as_root) }
                     }
                 }
             }
@@ -312,7 +312,7 @@ fun PixelIMSApp(
             rootGranted = true
             runCatching {
                 subscriptions = carrierModer.subscriptions
-            }.onFailure { privilegeError = it.message ?: "Unable to read telephony services as root" }
+            }.onFailure { privilegeError = it.message ?: context.getString(R.string.home_unable_to_read_telephony_as_root) }
             return
         }
         rootGranted = false
@@ -431,7 +431,7 @@ fun PixelIMSApp(
             title = stringResource(R.string.shizuku_regional_limit_title),
             message = stringResource(
                 R.string.shizuku_regional_limit_message,
-                osDistribution.name,
+                osDistribution.nameRes?.let { stringResource(it) } ?: osDistribution.name,
             ),
             confirmLabel = stringResource(R.string.understood),
             onDismiss = {
@@ -499,7 +499,7 @@ fun PixelIMSApp(
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Go back",
+                                contentDescription = stringResource(R.string.home_go_back),
                             )
                         }
                     }
@@ -541,7 +541,7 @@ fun PixelIMSApp(
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.Refresh,
-                                contentDescription = "Refresh contents",
+                                contentDescription = stringResource(R.string.home_refresh_contents),
                             )
                         }
                     }

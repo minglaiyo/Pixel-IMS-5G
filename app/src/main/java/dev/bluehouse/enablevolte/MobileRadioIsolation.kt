@@ -1,12 +1,14 @@
 package dev.bluehouse.enablevolte
 
 import android.net.wifi.WifiManager
+import androidx.annotation.StringRes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 data class MobileRadioIsolationResult(
     val session: MobileRadioIsolationSession?,
     val message: String,
+    @StringRes val messageRes: Int? = null,
 ) {
     val active: Boolean
         get() = session != null
@@ -54,10 +56,16 @@ object MobileRadioIsolation {
             if (attempt < INITIAL_STATE_ATTEMPTS - 1) delay(INITIAL_STATE_WAIT_MS)
         }
         if (initialState == WifiManager.WIFI_STATE_UNKNOWN && stateFailure != null) {
+            val failureMessage = stateFailure?.message
             return MobileRadioIsolationResult(
                 session = null,
-                message = stateFailure?.message
+                message = failureMessage
                     ?: "Unable to read Wi-Fi state through the selected privilege backend.",
+                messageRes = if (failureMessage == null) {
+                    R.string.root_wifi_state_unreadable
+                } else {
+                    null
+                },
             )
         }
         val initiallyEnabled =
@@ -71,6 +79,7 @@ object MobileRadioIsolation {
                 return MobileRadioIsolationResult(
                     session = null,
                     message = "Android rejected the privileged Wi-Fi disable request.",
+                    messageRes = R.string.root_wifi_disable_rejected,
                 )
             }
             try {
@@ -82,6 +91,7 @@ object MobileRadioIsolation {
                         return MobileRadioIsolationResult(
                             session = MobileRadioIsolationSession(restoreWifi = true),
                             message = "Wi-Fi disabled; monitoring is using the mobile-radio path.",
+                            messageRes = R.string.root_wifi_disabled_mobile_path,
                         )
                     }
                     delay(STATE_WAIT_MS)
@@ -94,17 +104,20 @@ object MobileRadioIsolation {
             return MobileRadioIsolationResult(
                 session = null,
                 message = "Wi-Fi did not reach the disabled state. The mobile-only session was not started.",
+                messageRes = R.string.root_wifi_not_disabled,
             )
         }
         return if (initialState == WifiManager.WIFI_STATE_DISABLED) {
             MobileRadioIsolationResult(
                 session = MobileRadioIsolationSession(restoreWifi = false),
                 message = "Wi-Fi was already disabled; monitoring is using the mobile-radio path.",
+                messageRes = R.string.root_wifi_already_disabled_mobile_path,
             )
         } else {
             MobileRadioIsolationResult(
                 session = null,
                 message = "Android reported an unknown Wi-Fi state. The mobile-only session was not started.",
+                messageRes = R.string.root_wifi_state_unknown,
             )
         }
     }

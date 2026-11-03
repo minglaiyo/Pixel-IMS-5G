@@ -32,14 +32,23 @@ enum class FixAction {
  *
  * The app has always been able to test each of these. What it never did was
  * put them in order and say which one is the reason.
+ *
+ * Copy lives in string resources because a ViewModel cannot call stringResource:
+ * titleRes/detailRes/fixLabelRes are R.string ids, resolved in HomeCheck.
+ * detailArgRes resolves one nested resource (the NR mode label); detailArg carries
+ * runtime data (locked band list); detailText wins for runtime patch messages
+ * that no resource can cover.
  */
 data class ReadinessCheck(
     val id: String,
-    val title: String,
-    val detail: String,
+    val titleRes: Int,
+    val detailRes: Int,
+    val detailArgRes: Int? = null,
+    val detailArg: String? = null,
+    val detailText: String? = null,
     val status: CheckStatus,
     val fix: FixAction = FixAction.NONE,
-    val fixLabel: String? = null,
+    val fixLabelRes: Int? = null,
     val blocking: Boolean = true,
 )
 
@@ -48,7 +57,9 @@ data class SetupState(
     val busyFix: FixAction? = null,
     val checks: List<ReadinessCheck> = emptyList(),
     val carrier: String = "",
-    val note: String? = null,
+    val noteRes: Int? = null,
+    val noteArg: String? = null,
+    val noteArgRes: Int? = null,
     val checkedAt: Long = 0,
     val refreshing: Boolean = false,
 ) {
@@ -99,19 +110,19 @@ class SetupViewModel(
         if (action == FixAction.NONE || _state.value.busyFix != null) return
         _state.value = _state.value.copy(busyFix = action)
         viewModelScope.launch {
-            val note = withContext(Dispatchers.IO) {
+            val (noteRes, noteArg, noteArgRes) = withContext(Dispatchers.IO) {
                 runCatching {
                     when (action) {
                         FixAction.ENABLE_VOLTE -> {
                             moder.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL, true)
                             moder.restartIMSRegistration()
-                            "VoLTE switched on. IMS is re-registering."
+                            Triple(R.string.setup_fix_volte_on, null, null)
                         }
                         FixAction.ENABLE_VONR -> {
                             moder.updateCarrierConfig(CarrierConfigManager.KEY_VONR_ENABLED_BOOL, true)
                             moder.updateCarrierConfig(CarrierConfigManager.KEY_VONR_SETTING_VISIBILITY_BOOL, true)
                             moder.restartIMSRegistration()
-                            "VoNR switched on."
+                            Triple(R.string.setup_fix_vonr_on, null, null)
                         }
                         FixAction.SET_NR_ARCHITECTURE -> {
                             moder.updateCarrierConfig(
@@ -121,25 +132,28 @@ class SetupViewModel(
                                     CarrierConfigManager.CARRIER_NR_AVAILABILITY_SA,
                                 ),
                             )
-                            "NR set to NSA and SA."
+                            Triple(R.string.setup_fix_nr_set, null, null)
                         }
                         // The modem patch is never applied from here: it goes through
                         // RegionalPatchViewModel and its confirmation dialog.
                         FixAction.RESTART_IMS -> {
                             moder.restartIMSRegistration()
-                            "IMS registration restarted."
+                            Triple(R.string.setup_fix_ims_restarted, null, null)
                         }
-                        else -> null
+                        else -> Triple<Int?, String?, Int?>(null, null, null)
                     }
-                }.getOrElse { "That did not apply: ${it.message ?: "the device refused it"}" }
+                }.getOrElse {
+                    Triple(R.string.setup_fix_failed, it.message,
+                        if (it.message == null) R.string.setup_fix_failed_fallback else null)
+                }
             }
-            _state.value = _state.value.copy(note = note)
+            _state.value = _state.value.copy(noteRes = noteRes, noteArg = noteArg, noteArgRes = noteArgRes)
             refresh()
         }
     }
 
     fun dismissNote() {
-        _state.value = _state.value.copy(note = null)
+        _state.value = _state.value.copy(noteRes = null, noteArg = null, noteArgRes = null)
     }
 
     private fun runChecks(): Pair<List<ReadinessCheck>, String> {
@@ -158,11 +172,11 @@ class SetupViewModel(
 
         out += ReadinessCheck(
             id = "privilege",
-            title = if (rootMode) "Root access" else "Shizuku access",
-            detail = if (privileged) {
-                if (rootMode) "Root service connected" else "Shizuku permission granted"
+            titleRes = if (rootMode) R.string.setup_check_privilege_root_title else R.string.setup_check_privilege_shizuku_title,
+            detailRes = if (privileged) {
+                if (rootMode) R.string.setup_check_privilege_root_pass else R.string.shizuku_permission_granted
             } else {
-                "Not connected. Nothing below can be read or changed without it."
+                R.string.setup_check_privilege_fail
             },
             status = if (privileged) CheckStatus.PASS else CheckStatus.FAIL,
         )
@@ -171,53 +185,54 @@ class SetupViewModel(
         val supportsIms = runCatching { carrierModer.deviceSupportsIMS }.getOrDefault(false)
         out += ReadinessCheck(
             id = "ims",
-            title = "Device supports IMS",
-            detail = if (supportsIms) "Reported by the platform" else "This device does not report IMS support",
+            titleRes = R.string.setup_check_ims_title,
+            detailRes = if (supportsIms) R.string.setup_check_ims_pass else R.string.setup_check_ims_fail,
             status = if (supportsIms) CheckStatus.PASS else CheckStatus.FAIL,
         )
 
         val volte = runCatching { moder.isVoLteConfigEnabled }.getOrDefault(false)
         out += ReadinessCheck(
             id = "volte",
-            title = "VoLTE enabled",
-            detail = if (volte) "Carrier configuration allows LTE calling. IMS registration is checked separately." else "Carrier configuration disables LTE calling.",
+            titleRes = R.string.setup_check_volte_title,
+            detailRes = if (volte) R.string.setup_check_volte_pass else R.string.setup_check_volte_fail,
             status = if (volte) CheckStatus.PASS else CheckStatus.FAIL,
             fix = if (volte) FixAction.NONE else FixAction.ENABLE_VOLTE,
-            fixLabel = if (volte) null else "Enable VoLTE",
+            fixLabelRes = if (volte) null else R.string.enable_volte,
         )
 
         val nrIndex = runCatching { moder.nrAvailabilityIndex }.getOrDefault(0)
-        val nrLabel = when (nrIndex) {
-            1 -> "NSA"
-            2 -> "SA"
-            3 -> "NSA and SA"
-            else -> "off"
-        }
         out += ReadinessCheck(
             id = "nr_mode",
-            title = "5G mode",
-            detail = if (nrIndex == 0) "NR is switched off in carrier config" else "Set to $nrLabel",
+            titleRes = R.string.setup_check_nr_title,
+            detailRes = if (nrIndex == 0) R.string.setup_check_nr_off else R.string.setup_check_nr_set_to,
+            detailArgRes = when (nrIndex) {
+                1 -> R.string.nr_nsa
+                2 -> R.string.nr_sa
+                3 -> R.string.nr_nsa_sa
+                else -> null
+            },
             status = if (nrIndex == 0) CheckStatus.FAIL else CheckStatus.PASS,
             fix = if (nrIndex == 0) FixAction.SET_NR_ARCHITECTURE else FixAction.NONE,
-            fixLabel = if (nrIndex == 0) "Set NSA + SA" else null,
+            fixLabelRes = if (nrIndex == 0) R.string.setup_check_nr_fix else null,
         )
 
         val bands = runCatching { moder.getBandSelection() }.getOrNull()
         val nrLocked = bands?.nrBands?.isNotEmpty() == true
         out += ReadinessCheck(
             id = "bands",
-            title = "Band selection",
-            detail = when {
-                bands == null -> "Could not read the current selection"
-                !nrLocked -> "No NR lock — the modem may use any band it is given"
-                else -> "Locked to ${bands.nrBands.joinToString(", ") { "n$it" }}"
+            titleRes = R.string.setup_check_bands_title,
+            detailRes = when {
+                bands == null -> R.string.setup_check_bands_unreadable
+                !nrLocked -> R.string.setup_check_bands_no_lock
+                else -> R.string.setup_check_bands_locked
             },
+            detailArg = if (nrLocked) bands?.nrBands?.joinToString(", ") { "n$it" } else null,
             status = when {
                 bands == null -> CheckStatus.UNKNOWN
                 else -> CheckStatus.PASS
             },
             fix = FixAction.OPEN_BANDS,
-            fixLabel = "Choose bands",
+            fixLabelRes = R.string.setup_check_bands_fix,
             blocking = false,
         )
 
@@ -225,40 +240,45 @@ class SetupViewModel(
             val vonr = runCatching { moder.isVoNrConfigEnabled }.getOrDefault(false)
             out += ReadinessCheck(
                 id = "vonr",
-                title = "VoNR setting",
-                detail = if (vonr) "Carrier configuration allows voice over 5G; registration is checked separately." else "Optional — only matters for voice on standalone 5G",
+                titleRes = R.string.setup_check_vonr_title,
+                detailRes = if (vonr) R.string.setup_check_vonr_pass else R.string.setup_check_vonr_warn,
                 status = if (vonr) CheckStatus.PASS else CheckStatus.WARN,
                 fix = if (vonr) FixAction.NONE else FixAction.ENABLE_VONR,
-                fixLabel = if (vonr) null else "Enable VoNR",
+                fixLabelRes = if (vonr) null else R.string.enable_vonr,
                 blocking = false,
             )
         }
 
         if (rootMode) {
             val patch = runCatching { PrivilegeManager.getRegionalModemPatchStatus() }.getOrNull()
+            // Runtime patch.message survives only via detailText: no resource can cover it.
+            val patchDetailText = patch?.takeIf {
+                it.supported && it.installed && !it.active && !it.rebootRequired && !it.removalPending
+            }?.message?.takeIf { it.isNotBlank() }
             out += ReadinessCheck(
                 id = "patch",
-                title = "Modem region patch",
-                detail = when {
-                    patch == null -> "Could not read the patch state"
-                    !patch.supported -> "Not applicable to this device"
-                    patch.removalPending -> "Removal is pending — reboot to finish"
-                    patch.installed && patch.rebootRequired -> "Installed. Reboot for the modem to load it"
-                    patch.installed && patch.active -> "Patched carrier database mounted"
-                    patch.installed -> patch.message.ifBlank { "Installed but inactive" }
-                    !patch.magiskAvailable -> "No Magisk, KernelSU or APatch was found, so the systemless patch cannot be installed"
-                    !patch.sourceAvailable -> "This firmware's modem database could not be read, so there is nothing to patch"
-                    else -> "Not installed. This optional compatibility patch changes the modem carrier mapping; it does not guarantee 5G attachment."
+                titleRes = R.string.setup_check_patch_title,
+                detailRes = when {
+                    patch == null -> R.string.setup_check_patch_unreadable
+                    !patch.supported -> R.string.setup_check_patch_not_applicable
+                    patch.removalPending -> R.string.setup_check_patch_removal_pending
+                    patch.installed && patch.rebootRequired -> R.string.setup_check_patch_reboot_required
+                    patch.installed && patch.active -> R.string.setup_check_patch_active
+                    patch.installed -> R.string.setup_check_patch_installed_inactive
+                    !patch.magiskAvailable -> R.string.setup_check_patch_no_root
+                    !patch.sourceAvailable -> R.string.setup_check_patch_no_source
+                    else -> R.string.setup_check_patch_not_installed
                 },
+                detailText = patchDetailText,
                 status = ReadinessRules.patchStatus(patch),
                 fix = if (patch != null && ReadinessRules.canInstallPatch(patch)) FixAction.INSTALL_MODEM_PATCH else FixAction.NONE,
-                fixLabel = if (patch != null && ReadinessRules.canInstallPatch(patch)) "Apply patch" else null,
+                fixLabelRes = if (patch != null && ReadinessRules.canInstallPatch(patch)) R.string.setup_check_patch_fix else null,
             )
         } else {
             out += ReadinessCheck(
                 id = "patch",
-                title = "Modem region patch",
-                detail = "Installing this compatibility patch requires root. Shizuku can read and adjust supported Android settings.",
+                titleRes = R.string.setup_check_patch_title,
+                detailRes = R.string.setup_check_patch_shizuku,
                 status = CheckStatus.WARN,
                 blocking = false,
             )

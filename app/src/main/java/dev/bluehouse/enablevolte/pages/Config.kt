@@ -111,7 +111,7 @@ fun Config(
                     toggled = state.value ?: false,
                     minSdk = control.minSdk,
                     busy = state.isBusy,
-                    error = if (state.hasFailed) state.message else null,
+                    error = if (state.hasFailed) (state.messageRes?.let { stringResource(it) } ?: state.message) else null,
                 ) { requested -> viewModel.toggle(control, requested) }
             }
         }
@@ -157,7 +157,7 @@ fun Config(
                 values = nrLabels,
                 selectedIndex = ui.nrAvailability.value ?: 0,
                 busy = ui.nrAvailability.isBusy,
-                error = if (ui.nrAvailability.hasFailed) ui.nrAvailability.message else null,
+                error = if (ui.nrAvailability.hasFailed) (ui.nrAvailability.messageRes?.let { stringResource(it) } ?: ui.nrAvailability.message) else null,
             ) { viewModel.setNrAvailability(it) }
         },
         {
@@ -166,7 +166,7 @@ fun Config(
                 values = radioLabels,
                 selectedIndex = ui.radioMode.value ?: 0,
                 busy = ui.radioMode.isBusy,
-                error = if (ui.radioMode.hasFailed) ui.radioMode.message else null,
+                error = if (ui.radioMode.hasFailed) (ui.radioMode.messageRes?.let { stringResource(it) } ?: ui.radioMode.message) else null,
             ) { viewModel.setRadioMode(it) }
         },
         { ClickablePropertyView(label = radioWarning, value = "") },
@@ -198,7 +198,7 @@ fun Config(
                 values = spnLabels,
                 selectedIndex = ui.wfcSpnFormat.value ?: 0,
                 busy = ui.wfcSpnFormat.isBusy,
-                error = if (ui.wfcSpnFormat.hasFailed) ui.wfcSpnFormat.message else null,
+                error = if (ui.wfcSpnFormat.hasFailed) (ui.wfcSpnFormat.messageRes?.let { stringResource(it) } ?: ui.wfcSpnFormat.message) else null,
             ) { viewModel.setWfcSpnFormat(it) }
         },
     )
@@ -360,18 +360,19 @@ private fun RootVoWifiPanel(
                 Text(
                     stringResource(
                         R.string.root_vowifi_status,
-                        if (status.settingEnabled) "Enabled" else "Disabled",
-                        status.modeLabel,
-                        status.registrationLabel,
-                        status.transportLabel,
-                        if (status.wifiState == 3) "On" else "Off",
+                        if (status.settingEnabled) stringResource(R.string.enabled) else stringResource(R.string.disabled),
+                        stringResource(status.modeLabel),
+                        stringResource(status.registrationLabel),
+                        stringResource(status.transportLabel),
+                        if (status.wifiState == 3) stringResource(R.string.config_wifi_state_on) else stringResource(R.string.config_wifi_state_off),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                if (status.message.isNotBlank()) {
+                val vowifiMessage = status.messageRes?.let { stringResource(it) } ?: status.message
+                if (vowifiMessage.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        status.message,
+                        vowifiMessage,
                         color = if (status.operationSucceeded) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -380,9 +381,10 @@ private fun RootVoWifiPanel(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                if (status.failureReason.isNotBlank() && !status.isVoWifiActive) {
+                val vowifiFailure = status.failureReasonRes?.let { stringResource(it) } ?: status.failureReason
+                if (vowifiFailure.isNotBlank() && !status.isVoWifiActive) {
                     Spacer(Modifier.height(8.dp))
-                    Text(status.failureReason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(vowifiFailure, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
             Spacer(Modifier.height(12.dp))

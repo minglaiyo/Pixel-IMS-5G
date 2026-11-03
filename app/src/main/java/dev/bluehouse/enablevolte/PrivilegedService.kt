@@ -14,6 +14,7 @@ import android.os.Process
 import android.os.ServiceManager
 import android.telephony.ims.ImsMmTelManager
 import android.util.Log
+import androidx.annotation.StringRes
 import com.android.internal.statusbar.IStatusBarService
 import com.android.internal.telephony.ITelephony
 import com.topjohnwu.superuser.ipc.RootService
@@ -159,6 +160,7 @@ class PrivilegedService : RootService() {
                     subscriptionId,
                     operationSucceeded = true,
                     message = "VoWiFi is enabled and Wi-Fi preferred. Connect to Wi-Fi and refresh to verify IWLAN.",
+                    messageRes = R.string.root_vowifi_repair_success,
                 ).toString()
             }.getOrElse {
                 Log.e(TAG, "Root VoWiFi repair failed", it)
@@ -189,6 +191,7 @@ class PrivilegedService : RootService() {
                     subscriptionId,
                     operationSucceeded = true,
                     message = "The pre-repair VoWiFi user settings were restored.",
+                    messageRes = R.string.root_vowifi_restore_success,
                 ).toString()
             }.getOrElse {
                 Log.e(TAG, "Root VoWiFi restore failed", it)
@@ -409,6 +412,7 @@ class PrivilegedService : RootService() {
             subscriptionId: Int,
             operationSucceeded: Boolean = false,
             message: String = "",
+            @StringRes messageRes: Int? = null,
         ): JSONObject {
             return runCatching {
                 validateSubscriptionId(subscriptionId)
@@ -447,7 +451,7 @@ class PrivilegedService : RootService() {
                         ServiceManager.getService("wifi") ?: error("Wi-Fi service is unavailable"),
                     ).wifiEnabledState
                 }.getOrDefault(0)
-                JSONObject()
+                val status = JSONObject()
                     .put("available", true)
                     .put("subscriptionId", subscriptionId)
                     .put("settingEnabled", manager.isVoWiFiSettingEnabled)
@@ -459,11 +463,13 @@ class PrivilegedService : RootService() {
                     .put("wifiState", wifiState)
                     .put("snapshotAvailable", voWifiSnapshotFile(subscriptionId).isFile)
                     .put("operationSucceeded", operationSucceeded)
-                    .put("failureReason", recentVoWifiFailure(subscriptionId))
                     .put("message", message)
+                recentVoWifiFailureRes(subscriptionId)?.let { status.put("failureReasonRes", it) }
+                messageRes?.let { status.put("messageRes", it) }
+                status
             }.getOrElse {
                 Log.w(TAG, "Unable to read root VoWiFi status for subId=$subscriptionId", it)
-                JSONObject()
+                val status = JSONObject()
                     .put("available", false)
                     .put("subscriptionId", subscriptionId)
                     .put("settingEnabled", false)
@@ -475,12 +481,14 @@ class PrivilegedService : RootService() {
                     .put("wifiState", 0)
                     .put("snapshotAvailable", voWifiSnapshotFile(subscriptionId).isFile)
                     .put("operationSucceeded", false)
-                    .put("failureReason", recentVoWifiFailure(subscriptionId))
                     .put("message", message.ifBlank { it.message ?: "Unable to read root VoWiFi status." })
+                recentVoWifiFailureRes(subscriptionId)?.let { status.put("failureReasonRes", it) }
+                messageRes?.let { status.put("messageRes", it) }
+                status
             }
         }
 
-        private fun recentVoWifiFailure(subscriptionId: Int): String {
+        private fun recentVoWifiFailureRes(subscriptionId: Int): Int? {
             val radio = runCommand(
                 "/system/bin/logcat",
                 "-b",
@@ -496,25 +504,17 @@ class PrivilegedService : RootService() {
                 RegexOption.IGNORE_CASE,
             ).containsMatchIn(radio)
             return when {
-                selectedSubHasNoProfile ->
-                    "Selected-SIM evidence: Android found no suitable IMS data profile for IWLAN " +
-                        "(NO_SUITABLE_DATA_PROFILE). The user setting is open, but the active carrier " +
-                        "provisioning/APN profile cannot create the VoWiFi IMS bearer."
+                selectedSubHasNoProfile -> R.string.root_vowifi_fail_no_profile
                 radio.contains("IWLAN_IKE_INIT_TIMEOUT", ignoreCase = true) ->
-                    "Recent modem-wide evidence: ePDG IKE tunnel setup timed out (IWLAN_IKE_INIT_TIMEOUT). " +
-                        "Try another Wi-Fi network, turn off VPN/Private DNS, and confirm the carrier permits VoWiFi. " +
-                        "The app cannot make an unreachable carrier ePDG answer."
+                    R.string.root_vowifi_fail_ike_timeout
                 radio.contains("IWLAN_IKE_AUTH_FAILED", ignoreCase = true) ||
                     radio.contains("IKE_AUTH_FAILED", ignoreCase = true) ->
-                    "Recent modem-wide evidence: the carrier ePDG rejected IKE authentication. " +
-                        "SIM VoWiFi entitlement or carrier credentials are the likely blocker."
+                    R.string.root_vowifi_fail_ike_auth
                 radio.contains("IWLAN_DNS_RESOLUTION_NAME_FAILURE", ignoreCase = true) ->
-                    "Recent modem-wide evidence: the carrier ePDG hostname could not be resolved. " +
-                        "Turn off Private DNS/VPN and test a different Wi-Fi network."
+                    R.string.root_vowifi_fail_dns
                 radio.contains("NO_SUITABLE_DATA_PROFILE", ignoreCase = true) ->
-                    "Recent modem-wide evidence: Android found no suitable IMS profile for IWLAN. " +
-                        "Carrier provisioning or the IMS APN/profile is incomplete."
-                else -> ""
+                    R.string.root_vowifi_fail_no_profile_global
+                else -> null
             }
         }
 

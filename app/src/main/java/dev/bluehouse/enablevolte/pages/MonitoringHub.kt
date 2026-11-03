@@ -13,6 +13,7 @@ import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -66,12 +68,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private enum class MonitorSection(val label: String) {
-    LIVE("Live"),
-    ATTACH("5G attach trace"),
-    RADIO("PCC / SCC"),
-    CONFIG("CarrierConfig diff"),
-    CAPABILITIES("NR capabilities"),
+private enum class MonitorSection(@StringRes val labelRes: Int) {
+    LIVE(R.string.monitor_section_live),
+    ATTACH(R.string.monitor_section_attach),
+    RADIO(R.string.monitor_section_radio),
+    CONFIG(R.string.monitor_section_config),
+    CAPABILITIES(R.string.monitor_section_capabilities),
 }
 
 @Suppress("ktlint:standard:function-naming")
@@ -98,8 +100,8 @@ fun MonitoringHub(subscriptions: List<SubscriptionInfo>) {
             isolationMessage = context.getString(R.string.mobile_only_disabling_wifi)
             val result = withContext(Dispatchers.IO) { MobileRadioIsolation.begin() }
             isolationSession = result.session
-            isolationMessage = result.message
-            if (!result.active) isolationError = result.message
+            isolationMessage = result.messageRes?.let { context.getString(it) } ?: result.message
+            if (!result.active) isolationError = result.messageRes?.let { context.getString(it) } ?: result.message
         }
     }
     OnLifecycleEvent { _, event ->
@@ -183,7 +185,7 @@ fun MonitoringHub(subscriptions: List<SubscriptionInfo>) {
                     FilterChip(
                         selected = section == it,
                         onClick = { section = it },
-                        label = { Text(it.label) },
+                        label = { Text(stringResource(it.labelRes)) },
                     )
                 }
             }
@@ -200,6 +202,7 @@ fun MonitoringHub(subscriptions: List<SubscriptionInfo>) {
 
 @Composable
 private fun PhysicalChannelsPage() {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var output by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -208,10 +211,10 @@ private fun PhysicalChannelsPage() {
         if (PrivilegeManager.activeMode != PrivilegeMode.ROOT || !PrivilegeManager.isRootReady()) return
         scope.launch {
             loading = true
-            output = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 PrivilegeManager.getRootTelephonyDiagnostic("physical")
-                    ?: "Root telephony service is unavailable."
             }
+            output = result ?: context.getString(R.string.monitor_physical_service_unavailable)
             loading = false
         }
     }
@@ -221,15 +224,14 @@ private fun PhysicalChannelsPage() {
         Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HeaderText("Physical Channels — PCC / SCC")
+        HeaderText(stringResource(R.string.monitor_physical_title))
         Text(
-            "Root mode reads Android’s active PhysicalChannelConfig list: primary/secondary status, " +
-                "RAT, band, PCI, channel, bandwidth, and frequency. Entries cover all active modems.",
+            stringResource(R.string.monitor_physical_intro),
             style = MaterialTheme.typography.bodySmall,
         )
         if (PrivilegeManager.activeMode == PrivilegeMode.ROOT && PrivilegeManager.isRootReady()) {
             Button(enabled = !loading, onClick = { capture() }) {
-                Text(if (loading) "Reading physical channels…" else "Refresh physical channels")
+                Text(stringResource(if (loading) R.string.monitor_physical_reading else R.string.monitor_physical_refresh))
             }
             output?.lineSequence()?.filter { it.isNotBlank() }?.forEachIndexed { index, line ->
                 Panel(Modifier.fillMaxWidth()) {
@@ -237,7 +239,7 @@ private fun PhysicalChannelsPage() {
                         val role = when {
                             line.contains("PrimaryServing") -> "PCell"
                             line.contains("SecondaryServing") -> "SCell"
-                            else -> "Channel"
+                            else -> stringResource(R.string.monitor_physical_role_channel)
                         }
                         Text("$role ${index + 1}", style = MaterialTheme.typography.titleMedium)
                         Text(line, style = NumericSmallTextStyle)
@@ -247,15 +249,13 @@ private fun PhysicalChannelsPage() {
         } else {
             Panel(Modifier.fillMaxWidth()) {
                 Text(
-                    "Root required. Shizuku cannot read READ_PRECISE_PHONE_STATE physical-channel " +
-                        "internals on current Tensor Pixel builds.",
+                    stringResource(R.string.monitor_physical_root_required),
                     modifier = Modifier.padding(16.dp),
                 )
             }
         }
         Text(
-            "Carrier aggregation is confirmed when at least one SecondaryServing LTE channel appears. " +
-                "NSA is confirmed only when an NR SecondaryServing channel or NR connected state appears.",
+            stringResource(R.string.monitor_physical_ca_note),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -326,7 +326,8 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
     }
     var radio by remember { mutableStateOf<SubscriptionModer.RadioDiagnostics?>(null) }
     var report by remember { mutableStateOf<SubscriptionModer.RootForceReport?>(null) }
-    var registryState by remember { mutableStateOf("Waiting for monitoring permission") }
+    var registryState by remember { mutableStateOf(context.getString(R.string.monitortrace_waiting_permission)) }
+    var registryActive by remember { mutableStateOf(false) }
     var events by remember { mutableStateOf(emptyList<RegistryEvent>()) }
     var rootEvidence by remember { mutableStateOf<String?>(null) }
     var rootCaptureRunning by remember { mutableStateOf(false) }
@@ -356,9 +357,11 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
             }
             runCatching {
                 manager.registerTelephonyCallback(context.mainExecutor, callback)
-                registryState = "Active — Android TelephonyRegistry callbacks"
+                registryState = context.getString(R.string.monitortrace_active)
+                registryActive = true
             }.onFailure {
-                registryState = "Unavailable: ${it.message ?: it.javaClass.simpleName}"
+                registryState = context.getString(R.string.monitortrace_unavailable, it.message ?: it.javaClass.simpleName)
+                registryActive = false
             }
             onDispose { runCatching { manager.unregisterTelephonyCallback(callback) } }
         }
@@ -384,7 +387,7 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
         Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HeaderText("5G Attach Trace")
+        HeaderText(stringResource(R.string.monitortrace_title))
         SubscriptionPicker(subscriptions, selectedSubId) {
             selectedSubId = it
             radio = null
@@ -394,23 +397,23 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
 
         Panel(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Callback sources", style = MaterialTheme.typography.titleMedium)
-                DiagnosticRow("TelephonyRegistry", registryState, registryState.startsWith("Active"))
+                Text(stringResource(R.string.monitortrace_callback_sources), style = MaterialTheme.typography.titleMedium)
+                DiagnosticRow("TelephonyRegistry", registryState, registryActive)
                 DiagnosticRow(
                     "ServiceStateTracker",
                     if (PrivilegeManager.activeMode == PrivilegeMode.ROOT) {
-                        "Root snapshot available; direct phone-process hook is not used"
+                        stringResource(R.string.monitortrace_root_snapshot)
                     } else {
-                        "Root required for phone-process internals"
+                        stringResource(R.string.monitortrace_root_required_phone)
                     },
                     PrivilegeManager.activeMode == PrivilegeMode.ROOT,
                 )
                 DiagnosticRow(
                     "NetworkRegistrationManager",
                     if (PrivilegeManager.activeMode == PrivilegeMode.ROOT) {
-                        "Root dumpsys/radio evidence available"
+                        stringResource(R.string.monitortrace_root_dumpsys)
                     } else {
-                        "Shizuku exposes framework registration state only; root required for internals"
+                        stringResource(R.string.monitortrace_shizuku_only)
                     },
                     PrivilegeManager.activeMode == PrivilegeMode.ROOT,
                 )
@@ -419,7 +422,7 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
                         permissionLauncher.launch(
                             arrayOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.ACCESS_FINE_LOCATION),
                         )
-                    }) { Text("Allow live monitoring callbacks") }
+                    }) { Text(stringResource(R.string.monitortrace_allow_callbacks)) }
                 }
             }
         }
@@ -429,24 +432,23 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
             val carrierNr = gates?.carrierNsa == true || gates?.carrierSa == true
             val localNrOpen = gates?.gates?.filter { it.mask != null }?.all { it.nrAllowed } == true
             val nsaConnected = current.displayTechnology == "5G NSA" || current.nrState == 3
-            val reason = attachReason(current, carrierNr, localNrOpen)
+            val reason = attachReason(context, current, carrierNr, localNrOpen)
             Panel(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Live attach sequence", style = MaterialTheme.typography.titleMedium)
-                    TraceStep("LTE registered", current.serviceState == "In service" && current.dataRat in setOf("LTE", "NR"))
-                    TraceStep("IMS registered", current.imsRegistered)
-                    TraceStep("CarrierConfig allows NR", carrierNr)
-                    TraceStep("Allowed-network NR gates open", localNrOpen)
-                    TraceStep("Network reports NR available", current.nrAvailable == true)
-                    TraceStep("DCNR unrestricted", current.dcNrRestricted == false)
-                    TraceStep("Serving registration reports EN-DC", current.endcAvailable == true)
-                    TraceStep("NR neighbor exposed by Android", current.nrBands.isNotEmpty())
-                    TraceStep("NSA secondary-cell group connected", nsaConnected)
-                    Text("Current diagnosis", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.monitortrace_sequence_title), style = MaterialTheme.typography.titleMedium)
+                    TraceStep(stringResource(R.string.monitortrace_step_lte), current.serviceState == "In service" && current.dataRat in setOf("LTE", "NR"))
+                    TraceStep(stringResource(R.string.monitortrace_step_ims), current.imsRegistered)
+                    TraceStep(stringResource(R.string.monitortrace_step_carrier_nr), carrierNr)
+                    TraceStep(stringResource(R.string.monitortrace_step_gates), localNrOpen)
+                    TraceStep(stringResource(R.string.monitortrace_step_nr_available), current.nrAvailable == true)
+                    TraceStep(stringResource(R.string.monitortrace_step_dcnr), current.dcNrRestricted == false)
+                    TraceStep(stringResource(R.string.monitortrace_step_endc), current.endcAvailable == true)
+                    TraceStep(stringResource(R.string.monitortrace_step_nr_neighbor), current.nrBands.isNotEmpty())
+                    TraceStep(stringResource(R.string.monitortrace_step_nsa_connected), nsaConnected)
+                    Text(stringResource(R.string.monitortrace_diagnosis_title), style = MaterialTheme.typography.titleSmall)
                     Text(reason, color = if (nsaConnected) statusToneColor(StatusTone.SUCCESS) else MaterialTheme.colorScheme.error)
                     Text(
-                        "Android does not expose the RRC SCG request/reject cause through public APIs. " +
-                            "A network rejection is only reported when root radio evidence contains one.",
+                        stringResource(R.string.monitortrace_rrc_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -456,7 +458,7 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
 
         Panel(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Root attach evidence", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.monitortrace_root_evidence_title), style = MaterialTheme.typography.titleMedium)
                 if (PrivilegeManager.activeMode == PrivilegeMode.ROOT && PrivilegeManager.isRootReady()) {
                     Button(
                         enabled = !rootCaptureRunning,
@@ -468,20 +470,19 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
                                         "[$it]\n" +
                                             PrivilegeManager.getRootTelephonyDiagnostic(it)
                                                 .orEmpty()
-                                                .ifBlank { "No matching events" }
+                                                .ifBlank { context.getString(R.string.monitortrace_no_events) }
                                     }
                                 }
                                 rootCaptureRunning = false
                             }
                         }
                     ) {
-                        Text(if (rootCaptureRunning) "Capturing…" else "Capture sanitized root evidence")
+                        Text(stringResource(if (rootCaptureRunning) R.string.monitortrace_capturing else R.string.monitortrace_capture))
                     }
                     rootEvidence?.let { Text(it.take(12_000), style = NumericSmallTextStyle) }
                 } else {
                     Text(
-                        "Not available in Shizuku mode. Switch the app to Root mode to read sanitized " +
-                            "TelephonyRegistry, phone-service, and radio-log evidence.",
+                        stringResource(R.string.monitortrace_root_not_available),
                     )
                 }
             }
@@ -490,7 +491,7 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
         if (events.isNotEmpty()) {
             Panel(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("TelephonyRegistry event log", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.monitortrace_event_log_title), style = MaterialTheme.typography.titleMedium)
                     events.forEach { Text("${it.time}  ${it.text}", style = NumericSmallTextStyle) }
                 }
             }
@@ -499,22 +500,22 @@ private fun AttachTracePage(subscriptions: List<SubscriptionInfo>) {
 }
 
 private fun attachReason(
+    context: Context,
     radio: SubscriptionModer.RadioDiagnostics,
     carrierNr: Boolean,
     localNrOpen: Boolean,
 ): String = when {
-    radio.dataRat == "NR" -> "5G SA is registered."
-    radio.displayTechnology == "5G NSA" || radio.nrState == 3 -> "5G NSA is connected; SCG addition succeeded."
-    !carrierNr -> "CarrierConfig disables NR modes on this subscription."
-    !localNrOpen -> "One or more Android allowed-network reasons exclude NR."
-    radio.dcNrRestricted == true -> "The network registration marks dual-connectivity NR as restricted."
+    radio.dataRat == "NR" -> context.getString(R.string.monitortrace_reason_sa)
+    radio.displayTechnology == "5G NSA" || radio.nrState == 3 -> context.getString(R.string.monitortrace_reason_nsa)
+    !carrierNr -> context.getString(R.string.monitortrace_reason_carrier_nr)
+    !localNrOpen -> context.getString(R.string.monitortrace_reason_gates)
+    radio.dcNrRestricted == true -> context.getString(R.string.monitortrace_reason_dcnr)
     radio.nrAvailable == true && radio.endcAvailable == false ->
-        "NR is advertised/eligible, but this LTE registration reports EN-DC unavailable. " +
-            "This matches the captured Dialog B41 case: no NSA SCG can be formed on the current anchor."
-    radio.nrAvailable == false -> "The current registration does not advertise NR availability."
+        context.getString(R.string.monitortrace_reason_endc_missing)
+    radio.nrAvailable == false -> context.getString(R.string.monitortrace_reason_nr_missing)
     radio.endcAvailable == true ->
-        "EN-DC is available but no SCG is connected. Generate root evidence during data traffic to identify a rejection or radio failure."
-    else -> "The framework has not exposed enough state to determine the attach failure."
+        context.getString(R.string.monitortrace_reason_endc_idle)
+    else -> context.getString(R.string.monitortrace_reason_unknown)
 }
 
 @Composable
@@ -584,11 +585,10 @@ private fun CarrierConfigDiffPage(subscriptions: List<SubscriptionInfo>) {
         Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HeaderText("CarrierConfig Diff Viewer")
+        HeaderText(stringResource(R.string.monitortrace_config_title))
         SubscriptionPicker(subscriptions, selectedSubId) { selectedSubId = it }
         Text(
-            "Effective per-SIM values are compared with Android’s built-in defaults. Carrier defaults " +
-                "are not automatically “better”; green means the effective value leaves that feature gate open.",
+            stringResource(R.string.monitortrace_config_intro),
             style = MaterialTheme.typography.bodySmall,
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -598,8 +598,8 @@ private fun CarrierConfigDiffPage(subscriptions: List<SubscriptionInfo>) {
                     DiagnosticRow(it.label, it.current, it.open)
                     Text(it.key, style = MaterialTheme.typography.labelSmall)
                     Text(
-                        "Android default: ${it.androidDefault}" +
-                            if (it.current != it.androidDefault) "  •  overridden/different" else "",
+                        stringResource(R.string.monitortrace_config_android_default, it.androidDefault) +
+                            if (it.current != it.androidDefault) stringResource(R.string.monitortrace_config_overridden) else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -617,7 +617,7 @@ private fun carrierConfigRows(context: Context, subId: Int): List<ConfigGate> {
         is IntArray -> value.joinToString(prefix = "[", postfix = "]")
         is BooleanArray -> value.joinToString(prefix = "[", postfix = "]")
         is Array<*> -> value.joinToString(prefix = "[", postfix = "]")
-        null -> "not exposed"
+        null -> context.getString(R.string.monitortrace_value_not_exposed)
         else -> value.toString()
     }
     fun defaultText(key: String): String = text(defaults[key])
@@ -627,45 +627,45 @@ private fun carrierConfigRows(context: Context, subId: Int): List<ConfigGate> {
     val nrAllowed = gates.filter { it.mask != null }.all { it.nrAllowed }
     val hide5gInferred = nrModes.isEmpty()
     val entries = listOf(
-        ConfigGate("allow_nr (effective)", "allowed_network_types + $nrKey", nrAllowed.toString(), "true", nrAllowed),
-        ConfigGate("carrier_nr_availabilities", nrKey, text(nrModes), defaultText(nrKey), nrModes.isNotEmpty()),
+        ConfigGate(context.getString(R.string.monitortrace_gate_allow_nr), "allowed_network_types + $nrKey", nrAllowed.toString(), "true", nrAllowed),
+        ConfigGate(context.getString(R.string.monitortrace_gate_carrier_nr), nrKey, text(nrModes), defaultText(nrKey), nrModes.isNotEmpty()),
         ConfigGate(
-            "hide_enable_5g (inferred)",
+            context.getString(R.string.monitortrace_gate_hide_5g),
             "inferred: carrier NR modes empty",
             hide5gInferred.toString(),
             "false",
             !hide5gInferred,
         ),
         ConfigGate(
-            "VoNR enabled",
+            context.getString(R.string.monitortrace_gate_vonr),
             CarrierConfigManager.KEY_VONR_ENABLED_BOOL,
             text(value(CarrierConfigManager.KEY_VONR_ENABLED_BOOL)),
             defaultText(CarrierConfigManager.KEY_VONR_ENABLED_BOOL),
             moder.getBooleanValue(CarrierConfigManager.KEY_VONR_ENABLED_BOOL),
         ),
         ConfigGate(
-            "VoLTE available",
+            context.getString(R.string.monitortrace_gate_volte),
             CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL,
             text(value(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL)),
             defaultText(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL),
             moder.getBooleanValue(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL),
         ),
         ConfigGate(
-            "VoWiFi available",
+            context.getString(R.string.monitortrace_gate_vowifi),
             CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL,
             text(value(CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL)),
             defaultText(CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL),
             moder.getBooleanValue(CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL),
         ),
         ConfigGate(
-            "LTE+ icon hidden",
+            context.getString(R.string.monitortrace_gate_lte_plus_icon),
             CarrierConfigManager.KEY_HIDE_LTE_PLUS_DATA_ICON_BOOL,
             text(value(CarrierConfigManager.KEY_HIDE_LTE_PLUS_DATA_ICON_BOOL)),
             defaultText(CarrierConfigManager.KEY_HIDE_LTE_PLUS_DATA_ICON_BOOL),
             !moder.getBooleanValue(CarrierConfigManager.KEY_HIDE_LTE_PLUS_DATA_ICON_BOOL),
         ),
         ConfigGate(
-            "VoWiFi status icon",
+            context.getString(R.string.monitortrace_gate_vowifi_icon),
             CarrierConfigManager.KEY_SHOW_WIFI_CALLING_ICON_IN_STATUS_BAR_BOOL,
             text(value(CarrierConfigManager.KEY_SHOW_WIFI_CALLING_ICON_IN_STATUS_BAR_BOOL)),
             defaultText(CarrierConfigManager.KEY_SHOW_WIFI_CALLING_ICON_IN_STATUS_BAR_BOOL),
@@ -718,61 +718,60 @@ private fun NrCapabilitiesPage(subscriptions: List<SubscriptionInfo>) {
         Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HeaderText("NR Capability Decoder")
+        HeaderText(stringResource(R.string.monitortrace_capabilities_title))
         SubscriptionPicker(subscriptions, selectedSubId) { selectedSubId = it }
         Panel(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Device and subscription", style = MaterialTheme.typography.titleMedium)
-                DiagnosticRow("NSA configured", stateText(gates?.carrierNsa), gates?.carrierNsa)
-                DiagnosticRow("SA configured", stateText(gates?.carrierSa), gates?.carrierSa)
+                Text(stringResource(R.string.monitortrace_device_title), style = MaterialTheme.typography.titleMedium)
+                DiagnosticRow(stringResource(R.string.monitortrace_cap_nsa), stateText(context, gates?.carrierNsa), gates?.carrierNsa)
+                DiagnosticRow(stringResource(R.string.monitortrace_cap_sa), stateText(context, gates?.carrierSa), gates?.carrierSa)
                 DiagnosticRow(
-                    "EN-DC control capability",
-                    endcControl?.let { if (it) "Supported by radio HAL" else "Not reported by radio HAL" } ?: "Unknown",
+                    stringResource(R.string.monitortrace_cap_endc_control),
+                    endcControl?.let { if (it) stringResource(R.string.monitortrace_cap_endc_hal_supported) else stringResource(R.string.monitortrace_cap_endc_hal_missing) } ?: stringResource(R.string.monitortrace_value_unknown),
                     endcControl,
                 )
                 DiagnosticRow(
-                    "EN-DC available now",
-                    stateText(radio?.endcAvailable),
+                    stringResource(R.string.monitortrace_cap_endc_now),
+                    stateText(context, radio?.endcAvailable),
                     radio?.endcAvailable,
                 )
                 DiagnosticRow(
-                    "DCNR unrestricted now",
-                    radio?.dcNrRestricted?.let { if (it) "Restricted" else "Unrestricted" } ?: "Unknown",
+                    stringResource(R.string.monitortrace_cap_dcnr_now),
+                    radio?.dcNrRestricted?.let { if (it) stringResource(R.string.monitortrace_cap_dcnr_restricted) else stringResource(R.string.monitortrace_cap_dcnr_open) } ?: stringResource(R.string.monitortrace_value_unknown),
                     radio?.dcNrRestricted?.not(),
                 )
                 DiagnosticRow(
-                    "VoNR configured",
+                    stringResource(R.string.monitortrace_cap_vonr),
                     if (selectedSubId >= 0) {
                         stateText(
+                            context,
                             runCatching {
                                 SubscriptionModer(context, selectedSubId)
                                     .getBooleanValue(CarrierConfigManager.KEY_VONR_ENABLED_BOOL)
                             }.getOrNull(),
                         )
                     } else {
-                        "Unknown"
+                        stringResource(R.string.monitortrace_value_unknown)
                     },
                     null,
                 )
                 DiagnosticRow(
-                    "NR connection",
-                    radio?.displayTechnology ?: "Unknown",
+                    stringResource(R.string.monitortrace_cap_nr_connection),
+                    radio?.displayTechnology ?: stringResource(R.string.monitortrace_value_unknown),
                     radio?.displayTechnology?.startsWith("5G"),
                 )
             }
         }
         Text(
-            "“Configured” is not the same as connected. NSA also requires an LTE anchor advertising " +
-                "EN-DC and successful network SCG admission. VoNR additionally requires SA registration, " +
-                "IMS provisioning, and carrier support.",
+            stringResource(R.string.monitortrace_configured_note),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
-private fun stateText(value: Boolean?): String = when (value) {
-    true -> "Supported / enabled"
-    false -> "Not enabled"
-    null -> "Unknown"
+private fun stateText(context: Context, value: Boolean?): String = when (value) {
+    true -> context.getString(R.string.monitortrace_state_supported)
+    false -> context.getString(R.string.monitortrace_state_not_enabled)
+    null -> context.getString(R.string.monitortrace_value_unknown)
 }

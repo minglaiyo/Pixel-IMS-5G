@@ -1,5 +1,7 @@
 package dev.bluehouse.enablevolte
 
+import androidx.annotation.StringRes
+
 enum class ChangelogTone {
     FEATURE,
     IMPROVEMENT,
@@ -8,9 +10,13 @@ enum class ChangelogTone {
 }
 
 data class ChangelogItem(
-    val title: String,
-    val detail: String,
+    @StringRes val titleRes: Int,
+    @StringRes val detailRes: Int,
     val tone: ChangelogTone,
+    // Runtime-only fallback: fromReleaseNotes() parses release notes at runtime,
+    // which cannot map to a string resource. Catalog items leave these null.
+    val titleText: String? = null,
+    val detailText: String? = null,
 )
 
 data class InstalledChangelog(
@@ -26,23 +32,23 @@ object ReleaseChangelogCatalog {
                     version = "2.2.8",
                     items = listOf(
                         ChangelogItem(
-                            title = "Radio log capture in Field Test",
-                            detail = "A new root-only option saves the vendor RIL logs (sit-ril), the modem's capability logs, the radio log buffer and telephony state to a ZIP in Downloads, with a Share button. It is read-only and never changes a setting.",
+                            titleRes = R.string.changelog_v228_title_1,
+                            detailRes = R.string.changelog_v228_detail_1,
                             tone = ChangelogTone.FEATURE,
                         ),
                         ChangelogItem(
-                            title = "See why 5G was not added",
-                            detail = "The capture shows the modem's EN-DC capability events with their cause codes and decodes each capability log into the LTE and 5G band combinations the phone offered the network.",
+                            titleRes = R.string.changelog_v228_title_2,
+                            detailRes = R.string.changelog_v228_detail_2,
                             tone = ChangelogTone.FEATURE,
                         ),
                         ChangelogItem(
-                            title = "Identifiers redacted by default",
-                            detail = "IMSI, ICCID, IMEI, phone numbers and IP addresses are masked before anything leaves the app. Binary RIL files that cannot be redacted are skipped while redaction is on.",
+                            titleRes = R.string.changelog_v228_title_3,
+                            detailRes = R.string.changelog_v228_detail_3,
                             tone = ChangelogTone.IMPROVEMENT,
                         ),
                         ChangelogItem(
-                            title = "Pixel 10 Pro XL 5G is still under investigation",
-                            detail = "This release adds the tool to diagnose it; it does not fix the Pixel 10 Pro XL staying on LTE where other phones get 5G.",
+                            titleRes = R.string.changelog_v228_title_4,
+                            detailRes = R.string.changelog_v228_detail_4,
                             tone = ChangelogTone.IMPORTANT,
                         ),
                     ),
@@ -52,38 +58,38 @@ object ReleaseChangelogCatalog {
                     version = "2.2.7",
                     items = listOf(
                         ChangelogItem(
-                            title = "Liquid Glass redesign",
-                            detail = "A completely new Home and Network design with translucent glass panels, clear typography and plain-language explanations, in light and dark.",
+                            titleRes = R.string.changelog_v227_title_1,
+                            detailRes = R.string.changelog_v227_detail_1,
                             tone = ChangelogTone.FEATURE,
                         ),
                         ChangelogItem(
-                            title = "Live carrier aggregation, in plain sight",
-                            detail = "Network shows every current LTE CA carrier with its own band, channel, PCI, bandwidth and signal readings. Totals follow the carriers reported in each sample, so 3 to 2 to 1 carriers update immediately; Android's retained summary is labelled separately.",
+                            titleRes = R.string.changelog_v227_title_2,
+                            detailRes = R.string.changelog_v227_detail_2,
                             tone = ChangelogTone.FEATURE,
                         ),
                         ChangelogItem(
-                            title = "5G anchor and NR status that tells the truth",
-                            detail = "Separates the LTE anchor, an active 5G carrier and nearby cells. When the network advertises 5G but the modem reports EN-DC unavailable, the monitor says 5G advertised, LTE only, instead of implying a 5G connection.",
+                            titleRes = R.string.changelog_v227_title_3,
+                            detailRes = R.string.changelog_v227_detail_3,
                             tone = ChangelogTone.IMPROVEMENT,
                         ),
                         ChangelogItem(
-                            title = "Clean carrier names",
-                            detail = "Fixes the raw Android service-state text and the numeric 413-02 title; carriers show as Dialog, SLT-MOBITEL and so on.",
+                            titleRes = R.string.changelog_v227_title_4,
+                            detailRes = R.string.changelog_v227_detail_4,
                             tone = ChangelogTone.FIX,
                         ),
                         ChangelogItem(
-                            title = "Home focused on setup",
-                            detail = "Home now holds access, enabled settings and modem compatibility. Live connection, signal and CA readings live on Network.",
+                            titleRes = R.string.changelog_v227_title_5,
+                            detailRes = R.string.changelog_v227_detail_5,
                             tone = ChangelogTone.IMPROVEMENT,
                         ),
                         ChangelogItem(
-                            title = "More Tensor Pixels for the modem patch",
-                            detail = "Adds Pixel 8a, Pixel 9a, Pixel 10 and Pixel 10a to the validated device list. The installer still validates each phone's own modem database first.",
+                            titleRes = R.string.changelog_v227_title_6,
+                            detailRes = R.string.changelog_v227_detail_6,
                             tone = ChangelogTone.FIX,
                         ),
                         ChangelogItem(
-                            title = "Pixel 10 Pro XL 5G is still under investigation",
-                            detail = "The modem patch is active and the phone advertises n78 capability, but some Pixel 10 Pro XL users still stay on LTE where other phones get 5G. This release does not fix that yet.",
+                            titleRes = R.string.changelog_v227_title_7,
+                            detailRes = R.string.changelog_v227_detail_7,
                             tone = ChangelogTone.IMPORTANT,
                         ),
                     ),
@@ -93,23 +99,23 @@ object ReleaseChangelogCatalog {
                     version = "2.2.6",
                     items = listOf(
                         ChangelogItem(
-                            title = "KernelSU and Magisk root compatibility",
-                            detail = "Includes the working 2.2.5 root startup, queued permission requests and Binder identity fixes. KernelSU mounts only cfg.db at boot without a metamodule; Magisk keeps its existing module path.",
+                            titleRes = R.string.changelog_v226_title_1,
+                            detailRes = R.string.changelog_v226_detail_1,
                             tone = ChangelogTone.FIX,
                         ),
                         ChangelogItem(
-                            title = "Verified mount and firmware revalidation",
-                            detail = "Preserves read-only single-file mounting, hash and SELinux checks, rollback on failure, and clear active or stale patch status after firmware updates.",
+                            titleRes = R.string.changelog_v226_title_2,
+                            detailRes = R.string.changelog_v226_detail_2,
                             tone = ChangelogTone.IMPROVEMENT,
                         ),
                         ChangelogItem(
-                            title = "Accurate field-test callback status",
-                            detail = "Includes the 2.2.1 fix distinguishing failed callback registration from successful registration with no events. Timed polling remains the primary evidence when callbacks are unavailable.",
+                            titleRes = R.string.changelog_v226_title_3,
+                            detailRes = R.string.changelog_v226_detail_3,
                             tone = ChangelogTone.FIX,
                         ),
                         ChangelogItem(
-                            title = "Precise field-test evidence warnings",
-                            detail = "Includes the 2.2.1 fix separating missing serving cells, conflicting CellInfo and unmatched device-global physical channels, without treating another SIM's evidence as selected-SIM proof.",
+                            titleRes = R.string.changelog_v226_title_4,
+                            detailRes = R.string.changelog_v226_detail_4,
                             tone = ChangelogTone.FIX,
                         ),
                     ),
@@ -120,18 +126,18 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "KernelSU works without a metamodule",
-                                detail = "The regional modem patch now mounts only cfg.db at boot through KernelSU's native module support. No directory overlay or mounting metamodule is required.",
+                                titleRes = R.string.changelog_v225_title_1,
+                                detailRes = R.string.changelog_v225_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Verified read-only single-file mount",
-                                detail = "The boot script verifies the source and target, remounts the bind read-only, records its status, and rolls back instead of leaving a partial mount when validation fails.",
+                                titleRes = R.string.changelog_v225_title_2,
+                                detailRes = R.string.changelog_v225_detail_2,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Clearer patch state after firmware updates",
-                                detail = "Setup now distinguishes an active patch from a staged or stale module and offers Revalidate when the modem database must be rebuilt for the current firmware.",
+                                titleRes = R.string.changelog_v225_title_3,
+                                detailRes = R.string.changelog_v225_detail_3,
                                 tone = ChangelogTone.FIX,
                             ),
                         ),
@@ -141,13 +147,13 @@ object ReleaseChangelogCatalog {
                     version = "2.2.1",
                     items = listOf(
                         ChangelogItem(
-                            title = "Accurate field-test callback status",
-                            detail = "A failed callback registration is no longer described as successful. Timed polling remains the primary evidence when callbacks are unavailable.",
+                            titleRes = R.string.changelog_v221_title_1,
+                            detailRes = R.string.changelog_v221_detail_1,
                             tone = ChangelogTone.FIX,
                         ),
                         ChangelogItem(
-                            title = "Clearer evidence warnings",
-                            detail = "Reports distinguish missing serving-cell observations, conflicting CellInfo, and unmatched device-global physical channels. An unrelated physical-channel snapshot no longer implies a CellInfo conflict.",
+                            titleRes = R.string.changelog_v221_title_2,
+                            detailRes = R.string.changelog_v221_detail_2,
                             tone = ChangelogTone.FIX,
                         ),
                     ),
@@ -158,48 +164,48 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Liquid glass, light and dark",
-                                detail = "Panels are now translucent glass over a lit background, with a specular rim and highlight. The floating tab bar has a glass lens that slides between tabs. A new button in the top bar switches between System, Light and Dark.",
+                                titleRes = R.string.changelog_v220_title_1,
+                                detailRes = R.string.changelog_v220_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "The modem patch leads Home for root users",
-                                detail = "As soon as root is granted, the 5G regional modem patch is the first card on Setup, with its prerequisites checked and one install button. Once active it shrinks to a single line.",
+                                titleRes = R.string.changelog_v220_title_2,
+                                detailRes = R.string.changelog_v220_detail_2,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "KernelSU and APatch",
-                                detail = "The regional modem patch now installs with KernelSU (with a mounting metamodule such as mountify) and APatch, not only Magisk.",
+                                titleRes = R.string.changelog_v220_title_3,
+                                detailRes = R.string.changelog_v220_detail_3,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Reapply after reboot (Shizuku)",
-                                detail = "An opt-in switch on SIM Config saves your changes and reapplies them once Shizuku is running after a reboot.",
+                                titleRes = R.string.changelog_v220_title_4,
+                                detailRes = R.string.changelog_v220_detail_4,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "No more crash when applying a setting on Android 17",
-                                detail = "Android 17 QPR2 changed a system call the app made after every change, which crashed the app even though the setting had applied. That call is now handled safely.",
+                                titleRes = R.string.changelog_v220_title_5,
+                                detailRes = R.string.changelog_v220_detail_5,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Settings no longer report 'did not accept' by mistake",
-                                detail = "The app checked the result before Android had finished applying it. It now waits for the change to land.",
+                                titleRes = R.string.changelog_v220_title_6,
+                                detailRes = R.string.changelog_v220_detail_6,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Modem patch installs on Android 15 builds that refused it",
-                                detail = "The installer failed with 'Unable to find app for caller' when opening the modem database as root. Failures are now shown on the card instead of doing nothing.",
+                                titleRes = R.string.changelog_v220_title_7,
+                                detailRes = R.string.changelog_v220_detail_7,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "NSA 5G counts as connected",
-                                detail = "Setup no longer reports 5G as failing while the phone is on NSA 5G.",
+                                titleRes = R.string.changelog_v220_title_8,
+                                detailRes = R.string.changelog_v220_detail_8,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "The modem patch always asks first",
-                                detail = "Every install, from any screen, now goes through the confirmation dialog.",
+                                titleRes = R.string.changelog_v220_title_9,
+                                detailRes = R.string.changelog_v220_detail_9,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -210,28 +216,28 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "The app opens on the answer",
-                                detail = "A new Setup screen tells you whether 5G is working on this SIM and, if it is not, which single thing is blocking it. No more hunting through twenty switches to find the one that matters.",
+                                titleRes = R.string.changelog_v210_title_1,
+                                detailRes = R.string.changelog_v210_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "One-tap fixes",
-                                detail = "Each failing check carries the action that addresses it: enable VoLTE, set NR to NSA and SA, enable VoNR, apply the Magisk modem patch, restart IMS, or open band selection.",
+                                titleRes = R.string.changelog_v210_title_2,
+                                detailRes = R.string.changelog_v210_detail_2,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Checks run in order",
-                                detail = "There is no point telling you the modem refused EN-DC if VoLTE was never switched on. The last two checks are outcomes rather than settings — whether an NR cell is actually registered, and whether IMS registered.",
+                                titleRes = R.string.changelog_v210_title_3,
+                                detailRes = R.string.changelog_v210_detail_3,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "The panels are visible now",
-                                detail = "2.0 shipped the glass panels far too faint to see. The design was ported from a web prototype that had a background blur behind every panel, which Android cannot do — so the panels now carry the contrast themselves.",
+                                titleRes = R.string.changelog_v210_title_4,
+                                detailRes = R.string.changelog_v210_detail_4,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Nothing was removed",
-                                detail = "Every individual carrier config switch is one tap away under Expert settings, and the previous overview screen is still there.",
+                                titleRes = R.string.changelog_v210_title_5,
+                                detailRes = R.string.changelog_v210_detail_5,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -242,33 +248,33 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Live network monitor",
-                                detail = "A new Network tab samples the radio every three seconds instead of taking one reading when you open a page. Serving cell, LTE anchor on NSA, and every neighbour cell in view, sorted by strength.",
+                                titleRes = R.string.changelog_v200_title_1,
+                                detailRes = R.string.changelog_v200_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Signal history",
-                                detail = "A rolling plot of the last ninety samples with min, mean and max. A dropout has a shape - a cliff is a handover, a slow slide is you walking away from the cell.",
+                                titleRes = R.string.changelog_v200_title_2,
+                                detailRes = R.string.changelog_v200_detail_2,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Cell log",
-                                detail = "Handovers, band changes, NR leg up and down, service loss and sudden signal drops, each timestamped. Only real transitions are recorded, not every sample.",
+                                titleRes = R.string.changelog_v200_title_3,
+                                detailRes = R.string.changelog_v200_detail_3,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Full parameter grid",
-                                detail = "PCI, EARFCN and NR-ARFCN, TAC, cell ID, RSRQ, SINR, CSI-RSRP, CSI-SINR, RSSI, CQI, bandwidth and timing advance, all on one screen.",
+                                titleRes = R.string.changelog_v200_title_4,
+                                detailRes = R.string.changelog_v200_detail_4,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Rebuilt interface",
-                                detail = "A new design: a lit navy ground with frosted panels, an animated swept-arc gauge for the headline reading, and Chakra Petch and JetBrains Mono shipping with the app so measurements are set in a real fixed-width face.",
+                                titleRes = R.string.changelog_v200_title_5,
+                                detailRes = R.string.changelog_v200_detail_5,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Nothing was removed",
-                                detail = "The attach trace, physical channels, registry event log and CarrierConfig diff are all still there, now one tap away under Deep diagnostics on the Network tab.",
+                                titleRes = R.string.changelog_v200_title_6,
+                                detailRes = R.string.changelog_v200_detail_6,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -279,33 +285,33 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "A completely new look",
-                                detail = "The violet and cyan glass theme is gone. The app now uses a neutral instrument palette: grey structure, one blue accent, and colour reserved for signal state so a green reading actually means something.",
+                                titleRes = R.string.changelog_v109_title_1,
+                                detailRes = R.string.changelog_v109_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Readings are monospaced",
-                                detail = "Band numbers, NRARFCN, PCI, signal measurements, and the event log now use a fixed-width face, so digits stay in their columns instead of shifting sideways as a live reading updates.",
+                                titleRes = R.string.changelog_v109_title_2,
+                                detailRes = R.string.changelog_v109_detail_2,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Organised, not cluttered",
-                                detail = "Settings rows no longer each float in their own card. Related controls are grouped into panels with dividers, so SIM Config reads as four decisions rather than twenty loose switches.",
+                                titleRes = R.string.changelog_v109_title_3,
+                                detailRes = R.string.changelog_v109_detail_3,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Navigation bar redesigned",
-                                detail = "The floating rounded pill is now a flush bar with a hairline above it, and the bouncing icon animation is gone.",
+                                titleRes = R.string.changelog_v109_title_4,
+                                detailRes = R.string.changelog_v109_detail_4,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Better light mode",
-                                detail = "Signal colours are tuned separately for light and dark instead of sharing one value, so nothing is washed out on a white background.",
+                                titleRes = R.string.changelog_v109_title_5,
+                                detailRes = R.string.changelog_v109_detail_5,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Pages open faster",
-                                detail = "The entrance animation on every page header has been removed. It delayed the first reading by about four tenths of a second each time you opened a page.",
+                                titleRes = R.string.changelog_v109_title_6,
+                                detailRes = R.string.changelog_v109_detail_6,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                         ),
@@ -316,33 +322,33 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Switches tell the truth",
-                                detail = "Every SIM Config switch now waits for the device to confirm the change and reads the value back. A setting the modem refuses reports why instead of quietly showing itself as on.",
+                                titleRes = R.string.changelog_v108_title_1,
+                                detailRes = R.string.changelog_v108_detail_1,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "No more freezing on toggle",
-                                detail = "Applying a setting no longer runs on the interface thread, so the app stays responsive and cannot hang while a root or Shizuku write is in progress.",
+                                titleRes = R.string.changelog_v108_title_2,
+                                detailRes = R.string.changelog_v108_detail_2,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Settings survive rotation",
-                                detail = "Rotating the phone or switching between light and dark no longer discards the SIM Config page or interrupts a change that is still being applied.",
+                                titleRes = R.string.changelog_v108_title_3,
+                                detailRes = R.string.changelog_v108_detail_3,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Tidier SIM Config page",
-                                detail = "Controls are grouped into Network, Calling, and Status bar sections instead of one long list, and each one shows when it is applying.",
+                                titleRes = R.string.changelog_v108_title_4,
+                                detailRes = R.string.changelog_v108_detail_4,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Faster page load",
-                                detail = "The page reads the carrier configuration once rather than around thirty times, and no longer scans every configuration field it never used.",
+                                titleRes = R.string.changelog_v108_title_5,
+                                detailRes = R.string.changelog_v108_detail_5,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Please re-check your settings",
-                                detail = "Every SIM Config control was rewritten in this release. Open SIM Config once after updating and confirm your VoLTE, VoNR, and band choices still read correctly.",
+                                titleRes = R.string.changelog_v108_title_6,
+                                detailRes = R.string.changelog_v108_detail_6,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -353,18 +359,18 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Much smaller download",
-                                detail = "Code shrinking is now enabled and fourteen unused libraries have been removed, cutting the release package from about 54 MB to roughly 3 MB.",
+                                titleRes = R.string.changelog_v107_title_1,
+                                detailRes = R.string.changelog_v107_detail_1,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "No feature changes",
-                                detail = "This release is internal housekeeping only. Root and Shizuku behaviour, band selection, the modem patch, and field test are all unchanged.",
+                                titleRes = R.string.changelog_v107_title_2,
+                                detailRes = R.string.changelog_v107_detail_2,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                             ChangelogItem(
-                                title = "Automated build checks",
-                                detail = "Every change is now compiled and unit tested automatically before release, so build regressions are caught earlier.",
+                                titleRes = R.string.changelog_v107_title_3,
+                                detailRes = R.string.changelog_v107_detail_3,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                         ),
@@ -375,18 +381,18 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Small bug fixes",
-                                detail = "Root SIM Config choices now stay together instead of later VoNR, VoWiFi, or enhanced-data-icon changes replacing earlier choices.",
+                                titleRes = R.string.changelog_v106_title_1,
+                                detailRes = R.string.changelog_v106_detail_1,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Persistent Root profiles",
-                                detail = "The app saves one complete profile per SIM and restores it after reboot, user unlock, app update, or Root service reconnect.",
+                                titleRes = R.string.changelog_v106_title_2,
+                                detailRes = R.string.changelog_v106_detail_2,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Safe reset behavior",
-                                detail = "Restore Google defaults also removes the saved Root profile. Shizuku controls remain session-only and may reset after reboot.",
+                                titleRes = R.string.changelog_v106_title_3,
+                                detailRes = R.string.changelog_v106_detail_3,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -397,28 +403,28 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "VoLTE Fix",
-                                detail = "Root mode can now show a live boxed VoLTE badge in Android’s right-side status area while IMS is registered over LTE or NR. The icon disappears when cellular IMS disconnects.",
+                                titleRes = R.string.changelog_v105_title_1,
+                                detailRes = R.string.changelog_v105_detail_1,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Live VoWiFi indicator",
-                                detail = "A separate right-side VoWiFi icon appears only when IMS is genuinely registered through IWLAN. These indicators do not create an ongoing notification.",
+                                titleRes = R.string.changelog_v105_title_2,
+                                detailRes = R.string.changelog_v105_detail_2,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Root VoWiFi repair",
-                                detail = "A reversible per-SIM repair opens the Android WFC gates, selects Wi-Fi preferred, restarts IMS, and reports carrier ePDG, profile, DNS, or authentication blockers honestly.",
+                                titleRes = R.string.changelog_v105_title_3,
+                                detailRes = R.string.changelog_v105_detail_3,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Deeper IMS reports",
-                                detail = "Field reports now include the effective VoWiFi setting, IMS registration transport, IWLAN state, Wi-Fi state, and sanitized recent failure evidence.",
+                                titleRes = R.string.changelog_v105_title_4,
+                                detailRes = R.string.changelog_v105_detail_4,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Small update",
-                                detail = "This release focuses on VoLTE and VoWiFi visibility and diagnostics. It does not change the regional 5G modem patch or bypass carrier IMS provisioning.",
+                                titleRes = R.string.changelog_v105_title_5,
+                                detailRes = R.string.changelog_v105_detail_5,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -429,23 +435,23 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "How to enable 5G",
-                                detail = "The in-app guide now starts with dedicated, step-by-step Root and Shizuku 5G setup paths using the exact controls users need.",
+                                titleRes = R.string.changelog_v104r_title_1,
+                                detailRes = R.string.changelog_v104r_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Root setup made explicit",
-                                detail = "The guide covers Root Force, the Magisk regional modem compatibility patch, the required reboot, NSA-first testing, and firmware-update recovery.",
+                                titleRes = R.string.changelog_v104r_title_2,
+                                detailRes = R.string.changelog_v104r_detail_2,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Clear Shizuku workflow",
-                                detail = "Shizuku users get a separate Automatic-bands, Force NSA, Easy Mode, regional-profile, Monitor, and Field Test sequence.",
+                                titleRes = R.string.changelog_v104r_title_3,
+                                detailRes = R.string.changelog_v104r_detail_3,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Regional limit remains honest",
-                                detail = "Shizuku can open Android-side gates but cannot replace Tensor cfg.db. A modem-policy rejection can still require the Root/Magisk patch.",
+                                titleRes = R.string.changelog_v104r_title_4,
+                                detailRes = R.string.changelog_v104r_detail_4,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -456,33 +462,33 @@ object ReleaseChangelogCatalog {
                     items =
                         listOf(
                             ChangelogItem(
-                                title = "Beautiful post-update changelogs",
-                                detail = "OTA updates now open a versioned liquid-glass What’s New screen. It preserves GitHub release notes across Android’s installer and can be reopened from About.",
+                                titleRes = R.string.changelog_v104_title_1,
+                                detailRes = R.string.changelog_v104_detail_1,
                                 tone = ChangelogTone.FEATURE,
                             ),
                             ChangelogItem(
-                                title = "Premium interface redesign",
-                                detail = "A calmer hierarchy, semantic status colors, refined typography, compact expert controls, glass surfaces and restrained motion now scale cleanly across Pixel displays.",
+                                titleRes = R.string.changelog_v104_title_2,
+                                detailRes = R.string.changelog_v104_detail_2,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Perfectly aligned navigation",
-                                detail = "The bottom bar is now custom-built with equal cells, fixed centered icon slots and stable label baselines. The app header also carries the by Nirmala signature.",
+                                titleRes = R.string.changelog_v104_title_3,
+                                detailRes = R.string.changelog_v104_detail_3,
                                 tone = ChangelogTone.FIX,
                             ),
                             ChangelogItem(
-                                title = "Safer mobile-only diagnostics",
-                                detail = "Monitor and Field Test temporarily disable Wi-Fi, fail closed if isolation cannot be confirmed, and restore the previous Wi-Fi state when the session ends.",
+                                titleRes = R.string.changelog_v104_title_4,
+                                detailRes = R.string.changelog_v104_detail_4,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                             ChangelogItem(
-                                title = "Deeper field reports",
-                                detail = "Reports now identify the OS build, operational PLMN, evidence source, NR and EN-DC flag semantics, IMS/callback coverage, readable policy gates and sanitized root modem deltas.",
+                                titleRes = R.string.changelog_v104_title_5,
+                                detailRes = R.string.changelog_v104_detail_5,
                                 tone = ChangelogTone.IMPROVEMENT,
                             ),
                             ChangelogItem(
-                                title = "Honest Shizuku guidance",
-                                detail = "Every Pixel using Shizuku receives the regional 5G limitation notice on stock Pixel OS and supported alternative Pixel operating systems.",
+                                titleRes = R.string.changelog_v104_title_6,
+                                detailRes = R.string.changelog_v104_detail_6,
                                 tone = ChangelogTone.IMPORTANT,
                             ),
                         ),
@@ -510,9 +516,11 @@ object ReleaseChangelogCatalog {
                             line.substringAfter(":", missingDelimiterValue = line).trim()
                         }
                     ChangelogItem(
-                        title = title,
-                        detail = detail.takeIf { it != title }.orEmpty(),
+                        titleRes = 0,
+                        detailRes = 0,
                         tone = toneFor("$title $detail"),
+                        titleText = title,
+                        detailText = detail.takeIf { it != title }.orEmpty(),
                     )
                 }
                 .take(10)

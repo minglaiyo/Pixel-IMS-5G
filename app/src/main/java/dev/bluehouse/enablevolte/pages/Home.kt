@@ -195,7 +195,7 @@ fun Home(navController: NavController) {
                     PremiumMetric(
                         label = stringResource(R.string.premium_sim),
                         value = if (subscriptions.isNotEmpty()) {
-                            "${subscriptions.size} detected"
+                            stringResource(R.string.home_sim_count_detected, subscriptions.size)
                         } else {
                             stringResource(R.string.premium_unavailable)
                         },

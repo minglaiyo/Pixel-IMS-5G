@@ -8,6 +8,7 @@ import android.net.wifi.IWifiManager
 import android.os.IBinder
 import android.os.ServiceManager
 import android.util.Log
+import androidx.annotation.StringRes
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import rikka.shizuku.ShizukuBinderWrapper
@@ -31,6 +32,8 @@ object PrivilegeManager {
     private data class RootConnectionResult(
         val ready: Boolean,
         val error: String?,
+        @StringRes val errorRes: Int? = null,
+        val errorArgs: List<String> = emptyList(),
     )
 
     @Volatile
@@ -99,6 +102,7 @@ object PrivilegeManager {
             return org.json.JSONObject()
                 .put("ok", false)
                 .put("message", "Root access is required to read the RIL and modem logs.")
+                .put("messageRes", R.string.root_logs_root_required)
                 .toString()
         }
         return requireNotNull(rootBridge) { "Root service is not connected" }.captureRadioLogs(output, redact)
@@ -130,13 +134,22 @@ object PrivilegeManager {
         call: (IPrivilegedService) -> String,
     ): RootVoWifiStatus {
         if (activeMode != PrivilegeMode.ROOT || !isRootReady()) {
-            return RootVoWifiStatus.unavailable(subscriptionId, "Root mode is required.")
+            return RootVoWifiStatus.unavailable(
+                subscriptionId,
+                "Root mode is required.",
+                R.string.root_mode_required,
+            )
         }
         return runCatching {
             RootVoWifiStatus.fromJson(call(requireNotNull(rootBridge)))
         }.getOrElse {
             Log.w(TAG, "Root VoWiFi operation failed", it)
-            RootVoWifiStatus.unavailable(subscriptionId, it.message ?: "Root service operation failed.")
+            val fallbackMessage = it.message
+            RootVoWifiStatus.unavailable(
+                subscriptionId,
+                fallbackMessage ?: "Root service operation failed.",
+                if (fallbackMessage == null) R.string.root_service_operation_failed else null,
+            )
         }
     }
 
@@ -157,8 +170,38 @@ object PrivilegeManager {
         reapplyPersistedConfig: Boolean = true,
         result: (Boolean, String?) -> Unit,
     ) {
-        val shouldStart = rootRequests.enqueue { connectionResult ->
+        connectRootInternal(context, reapplyPersistedConfig) { connectionResult ->
             result(connectionResult.ready, connectionResult.error)
+        }
+    }
+
+    /**
+     * Same as [connectRoot], but also delivers the resource ID of a static
+     * error (plus its format arguments) so the UI can show a translated
+     * message; [error] keeps the raw English/exception text as a fallback.
+     */
+    fun connectRoot(
+        context: Context,
+        reapplyPersistedConfig: Boolean = true,
+        result: (Boolean, String?, Int?, List<String>) -> Unit,
+    ) {
+        connectRootInternal(context, reapplyPersistedConfig) { connectionResult ->
+            result(
+                connectionResult.ready,
+                connectionResult.error,
+                connectionResult.errorRes,
+                connectionResult.errorArgs,
+            )
+        }
+    }
+
+    private fun connectRootInternal(
+        context: Context,
+        reapplyPersistedConfig: Boolean,
+        result: (RootConnectionResult) -> Unit,
+    ) {
+        val shouldStart = rootRequests.enqueue { connectionResult ->
+            result(connectionResult)
         }
         if (!shouldStart) {
             return
@@ -188,10 +231,13 @@ object PrivilegeManager {
                 if (shell?.isRoot != true) {
                     Thread { runCatching { shell?.waitAndClose(2, TimeUnit.SECONDS) } }.start()
                     Log.w(TAG, "Root shell startup failed", opened.exceptionOrNull())
+                    val shellFailure = opened.exceptionOrNull()?.message ?: "su did not return UID 0"
                     finishRootConnection(
                         ready = false,
                         error = "Root shell could not start. Enable Superuser for Pixel IMS 5G in your root " +
-                            "manager and retry. " + (opened.exceptionOrNull()?.message ?: "su did not return UID 0"),
+                            "manager and retry. " + shellFailure,
+                        errorRes = R.string.root_shell_start_failed,
+                        errorArgs = listOf(shellFailure),
                     )
                     return@execute
                 }
@@ -214,7 +260,11 @@ object PrivilegeManager {
                 if (ready) {
                     completeRootConnection(context, reapplyPersistedConfig)
                 } else {
-                    finishRootConnection(false, "The root service did not start as UID 0")
+                    finishRootConnection(
+                        false,
+                        "The root service did not start as UID 0",
+                        R.string.root_service_not_uid0,
+                    )
                 }
             }
 
@@ -223,7 +273,11 @@ object PrivilegeManager {
                 rootBridge = null
                 rootConnection = null
                 InterfaceCache.cache.clear()
-                finishRootConnection(false, "Root service disconnected before setup completed")
+                finishRootConnection(
+                    false,
+                    "Root service disconnected before setup completed",
+                    R.string.root_service_disconnected_setup,
+                )
             }
 
             override fun onNullBinding(name: ComponentName) {
@@ -233,6 +287,7 @@ object PrivilegeManager {
                     false,
                     "The root shell was verified, but the root service returned no Binder. Check the root manager " +
                         "profile and service startup logs.",
+                    R.string.root_service_no_binder,
                 )
             }
 
@@ -241,7 +296,11 @@ object PrivilegeManager {
                 rootBridge = null
                 rootConnection = null
                 InterfaceCache.cache.clear()
-                finishRootConnection(false, "Root service binding died before setup completed")
+                finishRootConnection(
+                    false,
+                    "Root service binding died before setup completed",
+                    R.string.root_service_binding_died,
+                )
             }
         }
         rootConnection = connection
@@ -257,7 +316,12 @@ object PrivilegeManager {
                     Log.w(TAG, "Root service launch failed", error)
                     context.mainExecutor.execute {
                         runCatching { RootService.unbind(connection) }
-                        finishRootConnection(false, "Root service launch failed: ${error.message}")
+                        finishRootConnection(
+                            false,
+                            "Root service launch failed: ${error.message}",
+                            R.string.root_service_launch_failed,
+                            listOf(error.message.orEmpty()),
+                        )
                     }
                 } finally {
                     runCatching { shell.waitAndClose(2, TimeUnit.SECONDS) }
@@ -267,7 +331,12 @@ object PrivilegeManager {
             Thread { runCatching { shell.waitAndClose(2, TimeUnit.SECONDS) } }.start()
             Log.w(TAG, "Unable to bind root service", it)
             rootConnection = null
-            finishRootConnection(false, it.message ?: "Unable to request root access")
+            val bindFailure = it.message
+            finishRootConnection(
+                false,
+                bindFailure ?: "Unable to request root access",
+                if (bindFailure == null) R.string.root_request_access_failed else null,
+            )
         }
     }
 
@@ -289,18 +358,24 @@ object PrivilegeManager {
                 finishRootConnection(
                     true,
                     if (reapplied) null else "The saved Root SIM profile could not be fully reapplied",
+                    if (reapplied) null else R.string.root_profile_reapply_failed,
                 )
             }
         }.start()
     }
 
-    private fun finishRootConnection(ready: Boolean, error: String?) {
+    private fun finishRootConnection(
+        ready: Boolean,
+        error: String?,
+        @StringRes errorRes: Int? = null,
+        errorArgs: List<String> = emptyList(),
+    ) {
         if (!ready) {
             rootBridge = null
             rootConnection = null
             InterfaceCache.cache.clear()
         }
-        val connectionResult = RootConnectionResult(ready, error)
+        val connectionResult = RootConnectionResult(ready, error, errorRes, errorArgs)
         rootRequests.complete(connectionResult).forEach { callback -> callback(connectionResult) }
     }
 
@@ -308,7 +383,7 @@ object PrivilegeManager {
         rootConnection?.let { runCatching { RootService.unbind(it) } }
         rootConnection = null
         rootBridge = null
-        finishRootConnection(false, "Root service was disconnected")
+        finishRootConnection(false, "Root service was disconnected", R.string.root_service_disconnected)
     }
 
     fun getPrivilegedWifiState(): Int =

@@ -1,5 +1,6 @@
 package dev.bluehouse.enablevolte
 
+import androidx.annotation.StringRes
 import org.json.JSONObject
 
 data class RootVoWifiStatus(
@@ -14,38 +15,43 @@ data class RootVoWifiStatus(
     val wifiState: Int,
     val snapshotAvailable: Boolean,
     val operationSucceeded: Boolean,
-    val failureReason: String,
+    @StringRes val failureReasonRes: Int? = null,
     val message: String,
+    @StringRes val messageRes: Int? = null,
 ) {
-    val modeLabel: String
+    @get:StringRes
+    val modeLabel: Int
         get() = when (mode) {
-            0 -> "Wi-Fi only"
-            1 -> "Cellular preferred"
-            2 -> "Wi-Fi preferred"
-            else -> "Unknown"
+            0 -> R.string.root_vowifi_mode_wifi_only
+            1 -> R.string.root_vowifi_mode_cellular_preferred
+            2 -> R.string.root_vowifi_mode_wifi_preferred
+            else -> R.string.root_label_unknown
         }
 
-    val roamingModeLabel: String
+    @get:StringRes
+    val roamingModeLabel: Int
         get() = when (roamingMode) {
-            0 -> "Wi-Fi only"
-            1 -> "Cellular preferred"
-            2 -> "Wi-Fi preferred"
-            else -> "Unknown"
+            0 -> R.string.root_vowifi_mode_wifi_only
+            1 -> R.string.root_vowifi_mode_cellular_preferred
+            2 -> R.string.root_vowifi_mode_wifi_preferred
+            else -> R.string.root_label_unknown
         }
 
-    val registrationLabel: String
+    @get:StringRes
+    val registrationLabel: Int
         get() = when (registrationState) {
-            2 -> "Registered"
-            1 -> "Registering"
-            0 -> "Not registered"
-            else -> "Unknown"
+            2 -> R.string.root_vowifi_reg_registered
+            1 -> R.string.root_vowifi_reg_registering
+            0 -> R.string.root_vowifi_reg_not_registered
+            else -> R.string.root_label_unknown
         }
 
-    val transportLabel: String
+    @get:StringRes
+    val transportLabel: Int
         get() = when (transportType) {
-            2 -> "IWLAN (VoWiFi)"
-            1 -> "Cellular"
-            else -> "Unknown"
+            2 -> R.string.root_vowifi_transport_iwlan
+            1 -> R.string.root_vowifi_transport_cellular
+            else -> R.string.root_label_unknown
         }
 
     val isVoWifiActive: Boolean
@@ -66,12 +72,17 @@ data class RootVoWifiStatus(
                 wifiState = json.optInt("wifiState", 0),
                 snapshotAvailable = json.optBoolean("snapshotAvailable"),
                 operationSucceeded = json.optBoolean("operationSucceeded"),
-                failureReason = json.optString("failureReason"),
+                failureReasonRes = json.optInt("failureReasonRes", -1).takeIf { it >= 0 },
                 message = json.optString("message"),
+                messageRes = json.optInt("messageRes", -1).takeIf { it >= 0 },
             )
         }
 
-        fun unavailable(subscriptionId: Int, message: String) = RootVoWifiStatus(
+        fun unavailable(
+            subscriptionId: Int,
+            message: String,
+            @StringRes messageRes: Int? = null,
+        ) = RootVoWifiStatus(
             available = false,
             subscriptionId = subscriptionId,
             settingEnabled = false,
@@ -83,8 +94,9 @@ data class RootVoWifiStatus(
             wifiState = 0,
             snapshotAvailable = false,
             operationSucceeded = false,
-            failureReason = "",
+            failureReasonRes = null,
             message = message,
+            messageRes = messageRes,
         )
     }
 }

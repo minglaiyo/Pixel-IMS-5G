@@ -1,5 +1,6 @@
 package dev.bluehouse.enablevolte
 
+import androidx.annotation.StringRes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -28,12 +29,14 @@ data class ControlState<T>(
     val value: T? = null,
     val phase: ControlPhase = ControlPhase.IDLE,
     val message: String? = null,
+    @StringRes val messageRes: Int? = null,
 ) {
     val isBusy: Boolean get() = phase == ControlPhase.APPLYING
 
     val hasFailed: Boolean get() = phase == ControlPhase.FAILED
 
-    fun applying(): ControlState<T> = copy(phase = ControlPhase.APPLYING, message = null)
+    fun applying(): ControlState<T> =
+        copy(phase = ControlPhase.APPLYING, message = null, messageRes = null)
 }
 
 /**
@@ -43,9 +46,16 @@ data class ControlState<T>(
 sealed interface WriteOutcome<out T> {
     data class Confirmed<T>(val value: T) : WriteOutcome<T>
 
-    data class Rejected<T>(val actual: T?, val reason: String) : WriteOutcome<T>
+    data class Rejected<T>(
+        val actual: T?,
+        val reason: String,
+        @StringRes val reasonRes: Int,
+    ) : WriteOutcome<T>
 
-    data class Failed(val reason: String) : WriteOutcome<Nothing>
+    data class Failed(
+        val reason: String?,
+        @StringRes val reasonRes: Int? = null,
+    ) : WriteOutcome<Nothing>
 }
 
 /**
@@ -80,10 +90,18 @@ suspend fun <T> applyAndConfirm(
         if (actual == requested) {
             WriteOutcome.Confirmed(requested)
         } else {
-            WriteOutcome.Rejected(actual, "The device did not accept this change.")
+            WriteOutcome.Rejected(
+                actual,
+                "The device did not accept this change.",
+                R.string.root_control_not_accepted,
+            )
         }
     } catch (e: Exception) {
-        WriteOutcome.Failed(e.message ?: "This change could not be applied.")
+        val failureMessage = e.message
+        WriteOutcome.Failed(
+            failureMessage ?: "This change could not be applied.",
+            if (failureMessage == null) R.string.root_control_apply_failed else null,
+        )
     }
 }
 
@@ -108,7 +126,9 @@ fun <T> ControlState<T>.reduce(outcome: WriteOutcome<T>): ControlState<T> =
         is WriteOutcome.Confirmed ->
             ControlState(outcome.value, ControlPhase.CONFIRMED)
         is WriteOutcome.Rejected ->
-            ControlState(outcome.actual ?: value, ControlPhase.FAILED, outcome.reason)
+            ControlState(
+                outcome.actual ?: value, ControlPhase.FAILED, outcome.reason, outcome.reasonRes,
+            )
         is WriteOutcome.Failed ->
-            ControlState(value, ControlPhase.FAILED, outcome.reason)
+            ControlState(value, ControlPhase.FAILED, outcome.reason, outcome.reasonRes)
     }

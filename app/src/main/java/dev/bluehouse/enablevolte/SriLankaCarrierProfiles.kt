@@ -1,11 +1,13 @@
 package dev.bluehouse.enablevolte
 
+import androidx.annotation.StringRes
+
 data class SriLankaCarrierProfile(
     val operatorNumeric: String,
     val name: String,
     val lteBands: List<Int>,
     val nrBands: List<Int>,
-    val wifiCallingNote: String,
+    @StringRes val wifiCallingNoteRes: Int,
 )
 
 object SriLankaCarrierProfiles {
@@ -17,28 +19,28 @@ object SriLankaCarrierProfiles {
             "SLT-MOBITEL",
             countryLteBands,
             listOf(78),
-            "VoWiFi still requires SLT-MOBITEL provisioning for this SIM and device.",
+            R.string.root_lk_slt_note,
         ),
         "41302" to SriLankaCarrierProfile(
             "41302",
             "Dialog",
             countryLteBands,
             listOf(78),
-            "Dialog customers can check/activate Wi-Fi Calling with #107# → option 2. Carrier provisioning is still required.",
+            R.string.root_lk_dialog_note,
         ),
         "41305" to SriLankaCarrierProfile(
             "41305",
             "Airtel Lanka SIM",
             countryLteBands,
             emptyList(),
-            "No public carrier profile is assumed. Confirm IMS and 5G provisioning with Dialog/Airtel support.",
+            R.string.root_lk_airtel_note,
         ),
         "41308" to SriLankaCarrierProfile(
             "41308",
             "Hutch",
             countryLteBands,
             emptyList(),
-            "No public VoWiFi or 5G entitlement is assumed; confirm provisioning with Hutch.",
+            R.string.root_lk_hutch_note,
         ),
     )
 

@@ -86,7 +86,7 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
                 it.cells.firstOrNull { cell -> cell.registered }?.dbm?.let { dbm ->
                     history = (history + dbm).takeLast(40)
                 }
-            }.onFailure { error = it.message ?: "Telephony data is unavailable" }
+            }.onFailure { error = it.message ?: context.getString(R.string.monitor_telephony_unavailable) }
             delay(2_500)
         }
     }
@@ -124,7 +124,7 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        StatusPill(data.displayTechnology, Icons.Filled.SignalCellularAlt)
+                        StatusPill(data.displayTechnologyRes?.let { stringResource(it) } ?: data.displayTechnology, Icons.Filled.SignalCellularAlt)
                         if (data.usingCarrierAggregation) {
                             StatusPill(stringResource(R.string.lte_plus_active), Icons.Filled.SignalCellularAlt)
                         }
@@ -132,8 +132,8 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
                             StatusPill(stringResource(R.string.vowifi), Icons.Filled.Wifi)
                         }
                     }
-                    KeyValue(stringResource(R.string.service_state), data.serviceState)
-                    KeyValue(stringResource(R.string.data_radio), data.displayTechnology)
+                    KeyValue(stringResource(R.string.service_state), data.serviceStateRes?.let { stringResource(it) } ?: data.serviceState)
+                    KeyValue(stringResource(R.string.data_radio), data.displayTechnologyRes?.let { stringResource(it) } ?: data.displayTechnology)
                     KeyValue(stringResource(R.string.raw_radio_state), "${data.dataRat} · NR state ${data.nrState}")
                     KeyValue(
                         stringResource(R.string.carrier_aggregation),
@@ -143,7 +143,7 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
                             stringResource(R.string.not_active)
                         },
                     )
-                    KeyValue(stringResource(R.string.ims_transport), data.imsTransport)
+                    KeyValue(stringResource(R.string.ims_transport), data.imsTransportRes?.let { stringResource(it) } ?: data.imsTransport)
                     KeyValue(
                         stringResource(R.string.vowifi_state),
                         if (data.imsRegistered && data.imsTransport == "IWLAN") {
@@ -191,24 +191,22 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(
-                                "${if (cell.registered) "Serving" else "Neighbor"} ${cell.type} ${cell.band}",
+                                if (cell.registered) stringResource(R.string.monitor_cell_title_serving, cell.type, cell.band) else stringResource(R.string.monitor_cell_title_neighbor, cell.type, cell.band),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (cell.registered) statusToneColor(StatusTone.SUCCESS) else MaterialTheme.colorScheme.onSurface,
                             )
                             Text("#${index + 1}")
                         }
-                        KeyValue("MCC-MNC", cell.operator.ifBlank { "—" })
-                        KeyValue("Channel / PCI", "${cell.channel} / ${cell.pci}")
-                        KeyValue("TAC / Cell ID", "${cell.tac} / ${cell.cellId}")
+                        KeyValue(stringResource(R.string.monitor_cell_mccmnc), cell.operator.ifBlank { "—" })
+                        KeyValue(stringResource(R.string.monitor_cell_channel_pci), "${cell.channel} / ${cell.pci}")
+                        KeyValue(stringResource(R.string.monitor_cell_tac_cellid), "${cell.tac} / ${cell.cellId}")
                         KeyValue(
-                            "Signal",
-                            "${cell.dbm} dBm · RSRP ${cell.rsrp ?: "—"} · RSRQ ${cell.rsrq ?: "—"} · SINR ${cell.sinr ?: "—"}",
+                            stringResource(R.string.monitor_cell_signal_label),
+                            stringResource(R.string.monitor_cell_signal_value, cell.dbm, cell.rsrp ?: "—", cell.rsrq ?: "—", cell.sinr ?: "—"),
                         )
                         KeyValue(
-                            "Radio detail",
-                            "level ${cell.level}/4 · RSSI ${cell.rssi ?: "—"} · CQI ${cell.cqi ?: "—"} · " +
-                                "TA ${cell.timingAdvance ?: "—"} · BW " +
-                                (cell.bandwidthKhz?.let { "${it / 1000f} MHz" } ?: "hidden"),
+                            stringResource(R.string.monitor_cell_radio_label),
+                            stringResource(R.string.monitor_cell_radio_value, cell.level, cell.rssi ?: "—", cell.cqi ?: "—", cell.timingAdvance ?: "—", cell.bandwidthKhz?.let { "${it / 1000f} MHz" } ?: stringResource(R.string.monitor_value_hidden)),
                         )
                     }
                 }
@@ -220,12 +218,12 @@ fun Monitor(subscriptions: List<SubscriptionInfo>) {
             Panel(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("${carrier.name} (${carrier.operatorNumeric})", style = MaterialTheme.typography.titleMedium)
-                    KeyValue("Sri Lanka LTE", carrier.lteBands.joinToString { "B$it" })
+                    KeyValue(stringResource(R.string.monitor_profile_lte), carrier.lteBands.joinToString { "B$it" })
                     KeyValue(
-                        "Commercial 5G profile",
-                        carrier.nrBands.joinToString { "n$it" }.ifBlank { "not assumed" },
+                        stringResource(R.string.monitor_profile_5g),
+                        carrier.nrBands.joinToString { "n$it" }.ifBlank { stringResource(R.string.monitor_profile_nr_not_assumed) },
                     )
-                    Text(carrier.wifiCallingNote, style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(carrier.wifiCallingNoteRes), style = MaterialTheme.typography.bodyMedium)
                     Text(
                         stringResource(R.string.profile_does_not_provision),
                         style = MaterialTheme.typography.bodySmall,
@@ -316,9 +314,9 @@ private fun SignalChart(values: List<Int>) {
 
 private fun wifiSummary(context: Context): String {
     val manager = context.getSystemService(ConnectivityManager::class.java)
-    val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return "Disconnected"
-    if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return "Not active"
+    val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return context.getString(R.string.monitor_wifi_disconnected)
+    if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return context.getString(R.string.monitor_wifi_not_active)
     val info = capabilities.transportInfo as? WifiInfo
     val frequency = info?.frequency?.takeIf { it > 0 }
-    return if (frequency != null) "$frequency MHz (Wi-Fi)" else "Connected (frequency hidden)"
+    return if (frequency != null) context.getString(R.string.monitor_wifi_frequency, frequency) else context.getString(R.string.monitor_wifi_connected_hidden)
 }

@@ -1,6 +1,7 @@
 package dev.bluehouse.enablevolte
 
 import android.app.Application
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -86,6 +87,9 @@ class NetworkMonitorViewModel(
 ) : AndroidViewModel(application) {
     private val moder = SubscriptionModer(application, subId)
 
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
+
     private val _state = MutableStateFlow(NetworkState())
     val state: StateFlow<NetworkState> = _state.asStateFlow()
 
@@ -135,7 +139,7 @@ class NetworkMonitorViewModel(
             _state.value = previous.copy(
                 loading = false,
                 available = false,
-                message = "The radio did not answer. Root or Shizuku has to be connected to read cell information.",
+                message = str(R.string.network_radio_no_answer),
             )
             return
         }
@@ -186,7 +190,7 @@ class NetworkMonitorViewModel(
 
         if (serving == null) {
             if (was != null) {
-                out += CellEvent(now, CellEventKind.LOST, "Service lost", "No registered cell reported")
+                out += CellEvent(now, CellEventKind.LOST, str(R.string.monitor_event_lost_title), str(R.string.monitor_event_lost_detail))
             }
             return out
         }
@@ -195,8 +199,8 @@ class NetworkMonitorViewModel(
             out += CellEvent(
                 now,
                 CellEventKind.REGISTERED,
-                "Registered",
-                "${serving.type} ${serving.band} · ${serving.channel} · PCI ${serving.pci}",
+                str(R.string.monitor_event_registered_title),
+                str(R.string.monitor_event_registered_detail, serving.type, serving.band, serving.channel, serving.pci),
             )
             return out
         }
@@ -205,16 +209,16 @@ class NetworkMonitorViewModel(
             out += CellEvent(
                 now,
                 CellEventKind.HANDOVER,
-                "Handover",
-                "PCI ${was.pci} → ${serving.pci}" + if (was.tac != serving.tac) " · TAC ${was.tac} → ${serving.tac}" else " · same TAC",
+                str(R.string.monitor_event_handover_title),
+                if (was.tac != serving.tac) str(R.string.monitor_event_handover_detail, was.pci, serving.pci, was.tac, serving.tac) else str(R.string.monitor_event_handover_same_tac, was.pci, serving.pci),
             )
         }
         if (was.band != serving.band || was.channel != serving.channel) {
             out += CellEvent(
                 now,
                 CellEventKind.BAND_CHANGE,
-                "Band change",
-                "${was.band} (${was.channel}) → ${serving.band} (${serving.channel})",
+                str(R.string.monitor_event_band_title),
+                str(R.string.monitor_event_band_detail, was.band, was.channel, serving.band, serving.channel),
             )
         }
 
@@ -224,17 +228,17 @@ class NetworkMonitorViewModel(
             out += CellEvent(
                 now,
                 CellEventKind.ENDC,
-                "NR leg up",
-                if (anchor != null) "anchor ${anchor.band} → NR ${serving.band}" else "NR ${serving.band}",
+                str(R.string.monitor_event_nr_up_title),
+                if (anchor != null) str(R.string.monitor_event_nr_up_anchor, anchor.band, serving.band) else str(R.string.monitor_event_nr_up_detail, serving.band),
             )
         } else if (hadNr && !hasNr) {
-            out += CellEvent(now, CellEventKind.ENDC, "NR leg down", "fell back to ${serving.type} ${serving.band}")
+            out += CellEvent(now, CellEventKind.ENDC, str(R.string.monitor_event_nr_down_title), str(R.string.monitor_event_nr_down_detail, serving.type, serving.band))
         }
 
         val before = was.rsrp ?: was.dbm
         val after = serving.rsrp ?: serving.dbm
         if (before - after >= SIGNAL_DROP_DB) {
-            out += CellEvent(now, CellEventKind.SIGNAL_DROP, "Signal dropped", "$before → $after dBm on ${serving.band}")
+            out += CellEvent(now, CellEventKind.SIGNAL_DROP, str(R.string.monitor_event_drop_title), str(R.string.monitor_event_drop_detail, before, after, serving.band))
         }
         return out
     }

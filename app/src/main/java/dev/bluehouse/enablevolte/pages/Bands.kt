@@ -171,15 +171,15 @@ fun Bands(
 
     fun loadSelection() {
         scope.launch {
-            var loadStage = "Current band restriction"
+            var loadStage = context.getString(R.string.bands_stage_current_restriction)
             try {
                 bandLoadError = null
                 val selection = withContext(Dispatchers.IO) { moder.getBandSelection() }
                 selectedLte = selection.lteBands.toSet()
                 selectedNr = selection.nrBands.toSet()
-                loadStage = "Radio profile"
+                loadStage = context.getString(R.string.bands_stage_radio_profile)
                 radioMode = withContext(Dispatchers.IO) { moder.radioModeIndex }
-                loadStage = "Easy mode"
+                loadStage = context.getString(R.string.bands_stage_easy_mode)
                 easyMode = withContext(Dispatchers.IO) { moder.easyModeEnabled }
                 val selectionText = if (selection.lteBands.isEmpty() && selection.nrBands.isEmpty()) {
                     context.getString(R.string.band_automatic)
@@ -191,13 +191,13 @@ fun Bands(
                     selection.knownSelection -> context.getString(R.string.band_cached_selection, selectionText)
                     else -> context.getString(R.string.band_readback_not_supported)
                 }
-                loadStage = "Tensor LTE CA"
+                loadStage = context.getString(R.string.bands_stage_tensor_lte_ca)
                 caStatus = when (withContext(Dispatchers.IO) { moder.getTensorLteCaEnabled() }) {
                     true -> context.getString(R.string.lte_ca_enabled)
                     false -> context.getString(R.string.lte_ca_disabled)
                     null -> context.getString(R.string.lte_ca_unavailable)
                 }
-                loadStage = "Radio diagnostics"
+                loadStage = context.getString(R.string.bands_stage_radio_diagnostics)
                 val radio = withContext(Dispatchers.IO) { moder.getRadioDiagnostics() }
                 detectedLte = radio.lteBands.toSet()
                 detectedNr = radio.nrBands.toSet()
@@ -218,7 +218,7 @@ fun Bands(
                     radio.nrAvailable == false -> context.getString(R.string.nr_not_advertised)
                     else -> context.getString(R.string.status_unknown)
                 }
-                loadStage = "Root force report"
+                loadStage = context.getString(R.string.bands_stage_root_force_report)
                 rootForceReport = if (
                     PrivilegeManager.activeMode == PrivilegeMode.ROOT &&
                     PrivilegeManager.isRootReady()
@@ -227,9 +227,9 @@ fun Bands(
                 } else {
                     null
                 }
-                loadStage = "Service state"
+                loadStage = context.getString(R.string.bands_stage_service_state)
                 noServiceChange = withContext(Dispatchers.IO) {
-                    if (!moder.hasCellularService()) moder.lastChangeDescription else null
+                    if (!moder.hasCellularService()) moder.lastChangeRes?.let { context.getString(it) } else null
                 }
             } catch (error: Exception) {
                 bandLoadError = bandFailureSummary(loadStage, error)
@@ -253,7 +253,7 @@ fun Bands(
                     }
                 }
             } catch (error: Exception) {
-                bandLoadError = bandFailureSummary("Radio profile change", error)
+                bandLoadError = bandFailureSummary(context.getString(R.string.bands_op_radio_profile_change), error)
                 false
             }
             Toast.makeText(context, if (accepted) R.string.nr_mode_requested else R.string.nr_mode_request_failed, Toast.LENGTH_LONG).show()
@@ -266,7 +266,7 @@ fun Bands(
             val retained = try {
                 withContext(Dispatchers.IO) { moder.setBandSelection(lte, nr) }
             } catch (error: Exception) {
-                bandLoadError = bandFailureSummary("Band selection change", error)
+                bandLoadError = bandFailureSummary(context.getString(R.string.bands_op_band_selection_change), error)
                 false
             }
             Toast.makeText(context, if (retained) R.string.band_applied else R.string.band_rejected, Toast.LENGTH_LONG).show()
@@ -281,7 +281,7 @@ fun Bands(
             val result = try {
                 withContext(Dispatchers.IO) { moder.setEasyMode(enabled) }
             } catch (error: Exception) {
-                bandLoadError = bandFailureSummary("Easy mode change", error)
+                bandLoadError = bandFailureSummary(context.getString(R.string.bands_op_easy_mode_change), error)
                 null
             }
             easyMode = enabled && result?.applied == true
@@ -307,7 +307,7 @@ fun Bands(
             } else {
                 context.getString(
                     R.string.root_force_partial,
-                    result.failedGates.joinToString().ifEmpty { context.getString(R.string.status_unknown) },
+                    result.failedGates.joinToString { it.resolve(context) }.ifEmpty { context.getString(R.string.status_unknown) },
                 )
             }
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -346,7 +346,7 @@ fun Bands(
                 result.applied -> context.getString(R.string.shizuku_regional_applied)
                 else -> context.getString(
                     R.string.shizuku_regional_partial,
-                    result.failedGates.joinToString().ifEmpty { context.getString(R.string.status_unknown) },
+                    result.failedGates.joinToString { it.resolve(context) }.ifEmpty { context.getString(R.string.status_unknown) },
                 )
             }
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -459,7 +459,7 @@ fun Bands(
                             gate.lteAllowed && gate.nrAllowed -> stringResource(R.string.gate_open)
                             else -> stringResource(R.string.gate_blocked)
                         }
-                        ClickablePropertyView(label = gate.label, value = value)
+                        ClickablePropertyView(label = gate.label.resolve(context), value = value)
                     }
                     ClickablePropertyView(
                         label = stringResource(R.string.carrier_nr_modes),
@@ -530,7 +530,7 @@ fun Bands(
                             }
                             .forEach { gate ->
                                 ClickablePropertyView(
-                                    label = gate.label,
+                                    label = gate.label.resolve(context),
                                     value = if (gate.lteAllowed && gate.nrAllowed) {
                                         stringResource(R.string.gate_open)
                                     } else {
@@ -541,7 +541,7 @@ fun Bands(
                         if (result.limitations.isNotEmpty()) {
                             ClickablePropertyView(
                                 label = stringResource(R.string.modem_limitations),
-                                value = result.limitations.joinToString(),
+                                value = result.limitations.joinToString { it.resolve(context) },
                             )
                         }
                     }

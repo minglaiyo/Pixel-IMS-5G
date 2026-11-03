@@ -1,5 +1,7 @@
 package dev.bluehouse.enablevolte
 
+import androidx.annotation.StringRes
+
 /** A current physical carrier, retaining the logical phone/slot it came from. */
 data class LivePhysicalChannel(
     val phoneId: Int, val rat: String, val status: Int, val band: Int?, val pci: Int?,
@@ -55,7 +57,7 @@ fun radioReading(value: Int?, unit: String = ""): String =
     else (value.toString().replace('-', '−') + if (unit.isBlank()) "" else " $unit")
 
 data class LiveCarrier(
-    val role: String, val rat: String, val band: String,
+    @StringRes val roleRes: Int, val rat: String, val band: String,
     val cell: SubscriptionModer.CellSnapshot?, val physical: LivePhysicalChannel?,
 ) {
     val channel: Int? get() = physical?.channel ?: cell?.channel?.takeIf { it >= 0 && it != Int.MAX_VALUE }
@@ -65,23 +67,31 @@ data class LiveCarrier(
 }
 
 data class LiveConnection(
-    val title: String, val explanation: String, val fiveGStatus: String,
+    @StringRes val titleRes: Int,
+    val titleArg: String? = null,
+    @StringRes val explanationRes: Int,
+    @StringRes val explanationSuffixRes: Int? = null,
+    @StringRes val fiveGStatusRes: Int,
     val nrConnected: Boolean, val caActive: Boolean, val carriers: List<LiveCarrier>,
-    val neighbours: List<SubscriptionModer.CellSnapshot>, val carrierNote: String,
+    val neighbours: List<SubscriptionModer.CellSnapshot>, @StringRes val carrierNoteRes: Int,
 ) {
     val caBandwidth: LiveCaBandwidth get() {
         val lte = carriers.filter { it.rat == "LTE" && (it.physical != null || it.cell != null) }
         return LiveCaBandwidth(lte.map { it.bandwidthKhz?.takeIf { width -> width > 0 && width != Int.MAX_VALUE } },
-            if (lte.any { it.physical != null }) "Physical channel report" else "Serving-cell report")
+            if (lte.any { it.physical != null }) {
+                R.string.root_live_source_physical
+            } else {
+                R.string.root_live_source_serving
+            })
     }
     val bandCombination: String get() = carriers.filter { it.rat == "LTE" && it.band != "Not reported" }.joinToString(" + ") { it.band }
     val serving: SubscriptionModer.CellSnapshot? get() = carriers.firstOrNull { it.rat == "NR" && it.cell != null }?.cell
         ?: carriers.firstOrNull { it.rat == "LTE" && it.cell != null }?.cell
-    val anchor: SubscriptionModer.CellSnapshot? get() = carriers.firstOrNull { it.role == "4G anchor" }?.cell
+    val anchor: SubscriptionModer.CellSnapshot? get() = carriers.firstOrNull { it.roleRes == R.string.root_role_4g_anchor }?.cell
 }
 
 /** Identified components in this sample only; ServiceState's retained summary is separate. */
-data class LiveCaBandwidth(val componentWidthsKhz: List<Int?>, val source: String) {
+data class LiveCaBandwidth(val componentWidthsKhz: List<Int?>, @StringRes val sourceRes: Int) {
     val componentCount: Int get() = componentWidthsKhz.size
     val totalKhz: Int? get() = if (componentWidthsKhz.isNotEmpty() && componentWidthsKhz.all { it != null })
         componentWidthsKhz.filterNotNull().sum() else null
@@ -107,11 +117,11 @@ fun resolveLiveConnection(
     val activePhysical = physical.filter { it.status in 1..2 && (it.rat != "NR" || nr) && (it.rat != "LTE" || dataRat != "NR") }
     val nsa = nr && dataRat != "NR"
     val result = mutableListOf<LiveCarrier>()
-    fun role(rat: String, primary: Boolean): String = when {
-        rat == "NR" -> "5G carrier"
-        primary && nsa -> "4G anchor"
-        primary -> "Main 4G carrier"
-        else -> "Extra 4G carrier"
+    fun role(rat: String, primary: Boolean): Int = when {
+        rat == "NR" -> R.string.root_role_5g_carrier
+        primary && nsa -> R.string.root_role_4g_anchor
+        primary -> R.string.root_role_main_4g_carrier
+        else -> R.string.root_role_extra_4g_carrier
     }
     activePhysical.sortedWith(compareBy<LivePhysicalChannel> { it.rat == "NR" }.thenBy { it.status }).forEach { p ->
         // Secondary CellInfo frequently omits MCC/MNC. A current, slot-scoped
@@ -138,45 +148,51 @@ fun resolveLiveConnection(
             result += LiveCarrier(role(c.type, primary), c.type, c.band.takeIf { it != "—" && it.isNotBlank() } ?: "Not reported", c, null)
         }
     }
-    if (nr && result.none { it.rat == "NR" }) result += LiveCarrier("5G carrier", "NR", "Not reported", null, null)
-    if (nsa && result.none { it.rat == "LTE" }) result.add(0, LiveCarrier("4G anchor", "LTE", "Not reported", null, null))
+    if (nr && result.none { it.rat == "NR" }) result += LiveCarrier(R.string.root_role_5g_carrier, "NR", "Not reported", null, null)
+    if (nsa && result.none { it.rat == "LTE" }) result.add(0, LiveCarrier(R.string.root_role_4g_anchor, "LTE", "Not reported", null, null))
     val lteCount = result.count { it.rat == "LTE" }
     val ca = dataRat != "NR" && (usingCa || dataRat == "LTE_CA" || lteCount > 1)
-    val title = when {
-        nr && nsa -> "5G NSA connected"
-        nr -> "5G SA connected"
-        ca && lteCount > 1 -> "4G+ connected"
-        ca -> "4G+ reported"
-        dataRat in setOf("LTE", "LTE_CA") -> "4G connected"
-        dataRat == "Unknown" -> "Waiting for network"
-        else -> "$dataRat connection"
+    val titleRes = when {
+        nr && nsa -> R.string.root_live_title_5g_nsa
+        nr -> R.string.root_live_title_5g_sa
+        ca && lteCount > 1 -> R.string.root_live_title_4g_plus_connected
+        ca -> R.string.root_live_title_4g_plus_reported
+        dataRat in setOf("LTE", "LTE_CA") -> R.string.root_live_title_4g_connected
+        dataRat == "Unknown" -> R.string.root_live_title_waiting
+        else -> R.string.root_live_title_other
     }
-    val connectionExplanation = when {
-        nsa -> "5G works alongside a 4G anchor. Both radio links support your connection."
-        nr -> "Connected to standalone 5G. A 4G anchor is not required."
-        ca && lteCount > 1 -> "Multiple 4G carriers work together for more capacity."
-        ca -> "Android reports carrier aggregation; current component details are incomplete."
-        dataRat == "LTE" -> "Your mobile connection is using 4G LTE."
-        else -> "Waiting for the phone to report its current radio connection."
+    // Only the generic branch carries an argument: the RAT name itself, which
+    // stays untranslated (LTE, NR, UMTS, ...). All other titles need no argument.
+    val titleArg = if (titleRes == R.string.root_live_title_other) dataRat else null
+    val explanationRes = when {
+        nsa -> R.string.root_live_expl_nsa
+        nr -> R.string.root_live_expl_sa
+        ca && lteCount > 1 -> R.string.root_live_expl_ca_multi
+        ca -> R.string.root_live_expl_ca_incomplete
+        dataRat == "LTE" -> R.string.root_live_expl_lte
+        else -> R.string.root_live_expl_waiting
     }
-    val explanation = connectionExplanation + when {
-        nr -> ""
-        nrState == 1 -> " Android reports that 5G is restricted on this connection."
-        nrAvailable == true && endcAvailable == false ->
-            " The network advertises 5G, but Android is not reporting an EN-DC link for 5G alongside LTE. Your current data connection remains 4G."
-        else -> ""
+    // The suffix is concatenated directly after the base explanation: its
+    // English text starts with a space, its Chinese text does not.
+    val explanationSuffixRes = when {
+        nr -> null
+        nrState == 1 -> R.string.root_live_expl_suffix_restricted
+        nrAvailable == true && endcAvailable == false -> R.string.root_live_expl_suffix_advertised_no_endc
+        else -> null
     }
-    val note = when {
-        usingCa && lteCount < 2 -> "Carrier aggregation is active, but Android is not reporting the extra carrier details."
-        activePhysical.isNotEmpty() -> "Carrier roles include current physical channels for this SIM slot."
-        result.isNotEmpty() -> "Carrier roles come from this SIM's serving-cell reports. Hidden extra carriers cannot be listed."
-        else -> "Android has not reported a serving cell for this SIM. Nearby cells are shown separately."
+    val carrierNoteRes = when {
+        usingCa && lteCount < 2 -> R.string.root_live_note_ca_no_detail
+        activePhysical.isNotEmpty() -> R.string.root_live_note_physical
+        result.isNotEmpty() -> R.string.root_live_note_serving
+        else -> R.string.root_live_note_no_serving
     }
-    return LiveConnection(title, explanation, when {
-        nr -> "5G connected"
-        nrState == 1 -> "5G restricted by the network"
-        nrAvailable == true && endcAvailable == false -> "5G advertised · LTE only"
-        nrAvailable == true || endcAvailable == true -> "5G available · not connected"
-        else -> "5G connection not reported"
-    }, nr, ca, result, cells.filter { c -> result.none { it.cell === c } }, note)
+    return LiveConnection(
+        titleRes, titleArg, explanationRes, explanationSuffixRes, when {
+            nr -> R.string.root_live_5g_connected
+            nrState == 1 -> R.string.root_live_5g_restricted
+            nrAvailable == true && endcAvailable == false -> R.string.root_live_5g_advertised_lte_only
+            nrAvailable == true || endcAvailable == true -> R.string.root_live_5g_available_not_connected
+            else -> R.string.root_live_5g_not_reported
+        }, nr, ca, result, cells.filter { c -> result.none { it.cell === c } }, carrierNoteRes,
+    )
 }

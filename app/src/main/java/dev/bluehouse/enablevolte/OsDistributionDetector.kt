@@ -2,11 +2,13 @@ package dev.bluehouse.enablevolte
 
 import android.content.Context
 import android.os.Build
+import androidx.annotation.StringRes
 
 data class OsDistribution(
     val name: String,
     val evidence: String,
     val isAlternativePixelOs: Boolean,
+    @StringRes val nameRes: Int? = null,
 )
 
 object OsDistributionDetector {
@@ -60,12 +62,14 @@ object OsDistributionDetector {
             installedGraphenePackages.isNotEmpty() ->
                 OsDistribution(
                     name = "GrapheneOS-derived or GrapheneOS apps installed",
+                    nameRes = R.string.root_os_graphene_derived,
                     evidence = "package(s)=${installedGraphenePackages.joinToString()}; build=$incremental",
                     isAlternativePixelOs = true,
                 )
             grapheneStyleBuildNumber ->
                 OsDistribution(
                     name = "GrapheneOS-style build number (not package-verified)",
+                    nameRes = R.string.root_os_graphene_style_build,
                     evidence = "incremental build=$incremental; distribution package evidence unavailable",
                     isAlternativePixelOs = true,
                 )
@@ -73,12 +77,14 @@ object OsDistributionDetector {
                 Build.FINGERPRINT.startsWith("google/") ->
                 OsDistribution(
                     name = "Google Pixel stock/AOSP-derived build",
+                    nameRes = R.string.root_os_pixel_stock,
                     evidence = "Google Pixel build metadata; incremental build=${incremental.ifBlank { "unknown" }}",
                     isAlternativePixelOs = false,
                 )
             else ->
                 OsDistribution(
                     name = "AOSP/custom distribution not positively identified",
+                    nameRes = R.string.root_os_aosp_unidentified,
                     evidence = "incremental build=${incremental.ifBlank { "unknown" }}",
                     isAlternativePixelOs = true,
                 )

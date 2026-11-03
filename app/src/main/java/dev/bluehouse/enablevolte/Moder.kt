@@ -35,6 +35,7 @@ import android.telephony.TelephonyManager
 import android.telephony.TelephonyFrameworkInitializer
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.annotation.StringRes
 import com.android.internal.telephony.ICarrierConfigLoader
 import com.android.internal.telephony.IBooleanConsumer
 import com.android.internal.telephony.IPhoneSubInfo
@@ -143,6 +144,23 @@ private fun settlePause(millis: Long) = Thread.sleep(millis)
 
 /** How long a background caller waits for the Shizuku broker to report its result. */
 private const val BROKER_TIMEOUT_SECONDS = 5L
+
+/**
+ * One user-visible gate/limitation label.
+ *
+ * [res] covers the static labels (resolved with [args] for the one formatted
+ * label); [text] covers values that are not localizable sentences, such as
+ * system property names. UI resolves with [resolve]; logic must never compare
+ * against the English text.
+ */
+data class GateLabel(
+    @StringRes val res: Int? = null,
+    val text: String? = null,
+    val args: List<String> = emptyList(),
+) {
+    fun resolve(context: Context): String =
+        res?.let { context.getString(it, *args.toTypedArray()) } ?: text.orEmpty()
+}
 
 class CarrierModer(
     private val context: Context,
@@ -253,11 +271,11 @@ class SubscriptionModer(
         private const val OEM_RIL_SET_RADIO_NODE_INT = 2
         private const val TENSOR_LTE_CA_ENABLEMENT_NODE = 12300
         private val ROOT_FORCE_REASONS = listOf(
-            0 to "User",
-            1 to "Power",
-            2 to "Carrier",
-            3 to "2G control",
-            4 to "Test",
+            0 to GateLabel(res = R.string.root_gate_user),
+            1 to GateLabel(res = R.string.root_gate_power),
+            2 to GateLabel(res = R.string.root_gate_carrier),
+            3 to GateLabel(res = R.string.root_gate_2g_control),
+            4 to GateLabel(res = R.string.root_gate_test),
         )
         private val ROOT_FORCE_PROPERTIES = listOf(
             "persist.dbg.ims_volte_enable" to "1",
@@ -288,7 +306,7 @@ class SubscriptionModer(
 
     data class NetworkGate(
         val reason: Int,
-        val label: String,
+        val label: GateLabel,
         val mask: Long?,
         val lteAllowed: Boolean,
         val nrAllowed: Boolean,
@@ -316,14 +334,14 @@ class SubscriptionModer(
 
     data class RootForceResult(
         val applied: Boolean,
-        val failedGates: List<String>,
+        val failedGates: List<GateLabel>,
         val report: RootForceReport,
     )
 
     data class ShizukuRegionalResult(
         val applied: Boolean,
-        val failedGates: List<String>,
-        val limitations: List<String>,
+        val failedGates: List<GateLabel>,
+        val limitations: List<GateLabel>,
         val report: RootForceReport,
     )
 
@@ -337,7 +355,7 @@ class SubscriptionModer(
             prefs.edit().putBoolean(EASY_MODE_PREFIX + subscriptionId, false).apply()
             return EasyModeResult(true, getTensorLteCaEnabled())
         }
-        saveChangeSnapshot("Enabled VoLTE + LTE CA Easy Mode")
+        saveChangeSnapshot(R.string.root_snapshot_easy_mode)
         if (!prefs.contains(ORIGINAL_CA_PREFIX + subscriptionId)) {
             prefs.edit().putInt(
                 ORIGINAL_CA_PREFIX + subscriptionId,
@@ -376,7 +394,7 @@ class SubscriptionModer(
         val carrierReason = TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_CARRIER
         val currentUser = phone.getAllowedNetworkTypesForReason(subscriptionId, userReason)
         val currentCarrier = phone.getAllowedNetworkTypesForReason(subscriptionId, carrierReason)
-        if (recordChange) saveChangeSnapshot("Radio profile changed")
+        if (recordChange) saveChangeSnapshot(R.string.root_snapshot_radio_profile)
         val prefs = context.getSharedPreferences(NETWORK_PREFS, Context.MODE_PRIVATE)
         val originalKey = ORIGINAL_MASK_PREFIX + subscriptionId
         val originalCarrierKey = ORIGINAL_CARRIER_MASK_PREFIX + subscriptionId
@@ -423,12 +441,12 @@ class SubscriptionModer(
         .sorted()
         .toIntArray()
 
-    private fun saveChangeSnapshot(action: String) {
+    private fun saveChangeSnapshot(@StringRes actionRes: Int) {
         val phone = this.loadCachedInterface { telephony }
         val bands = try { getBandSelection() } catch (_: Exception) { BandSelection(intArrayOf(), intArrayOf()) }
         val prefs = context.getSharedPreferences(NETWORK_PREFS, Context.MODE_PRIVATE)
         prefs.edit()
-            .putString(LAST_ACTION_PREFIX + subscriptionId, action)
+            .putInt(LAST_ACTION_PREFIX + subscriptionId, actionRes)
             .putLong(
                 LAST_USER_MASK_PREFIX + subscriptionId,
                 phone.getAllowedNetworkTypesForReason(subscriptionId, TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER),
@@ -451,9 +469,19 @@ class SubscriptionModer(
             .apply()
     }
 
-    val lastChangeDescription: String?
-        get() = context.getSharedPreferences(NETWORK_PREFS, Context.MODE_PRIVATE)
-            .getString(LAST_ACTION_PREFIX + subscriptionId, null)
+    /**
+     * Resource ID of the last recorded change, or null when there is none.
+     * Installs predating resource-ID history stored the English sentence; a
+     * non-integer entry simply yields no migrated history.
+     */
+    @get:StringRes
+    val lastChangeRes: Int?
+        get() {
+            val prefs = context.getSharedPreferences(NETWORK_PREFS, Context.MODE_PRIVATE)
+            return runCatching {
+                prefs.getInt(LAST_ACTION_PREFIX + subscriptionId, -1)
+            }.getOrNull()?.takeIf { it >= 0 }
+        }
 
     fun hasCellularService(): Boolean {
         return try {
@@ -581,6 +609,9 @@ class SubscriptionModer(
         val cells: List<CellSnapshot>,
         val cellBandwidthsKhz: List<Int> = emptyList(),
         val cellsScopedToSubscription: Boolean = false,
+        @StringRes val displayTechnologyRes: Int? = null,
+        @StringRes val imsTransportRes: Int? = null,
+        @StringRes val serviceStateRes: Int? = null,
     )
 
     data class CellSnapshot(
@@ -753,6 +784,31 @@ class SubscriptionModer(
             dataRat == "LTE" && usingCarrierAggregation -> "LTE+"
             else -> dataRat
         }
+        // Null for the dynamic branch: the display site falls back to dataRat.
+        val displayTechnologyRes = when {
+            dataRat == "NR" -> R.string.root_tech_5g_sa
+            dataRat == "LTE" && nrState == 3 -> R.string.root_tech_5g_nsa
+            dataRat == "LTE" && usingCarrierAggregation -> R.string.root_tech_lte_plus
+            else -> null
+        }
+        val imsTransportRes = when (imsTechnology) {
+            0 -> R.string.root_ims_transport_lte
+            1 -> R.string.root_ims_transport_iwlan
+            2 -> R.string.root_ims_transport_cross_sim
+            3 -> R.string.root_ims_transport_nr
+            else -> if (imsRegistered) {
+                R.string.root_ims_transport_hidden
+            } else {
+                R.string.root_ims_transport_not_registered
+            }
+        }
+        val serviceStateRes = when (state?.state) {
+            ServiceState.STATE_IN_SERVICE -> R.string.root_service_in_service
+            ServiceState.STATE_EMERGENCY_ONLY -> R.string.root_service_emergency_only
+            ServiceState.STATE_OUT_OF_SERVICE -> R.string.root_service_out_of_service
+            ServiceState.STATE_POWER_OFF -> R.string.root_service_radio_off
+            else -> R.string.root_service_unknown
+        }
         return RadioDiagnostics(
             lteBands = lteCells.flatMap {
                 val identity = it.cellIdentity
@@ -784,6 +840,7 @@ class SubscriptionModer(
                 ?: intArrayOf(),
             dataRat = dataRat,
             displayTechnology = displayTechnology,
+            displayTechnologyRes = displayTechnologyRes,
             usingCarrierAggregation = usingCarrierAggregation,
             nrState = nrState,
             nrAvailable = dataInfo?.isNrAvailable,
@@ -797,6 +854,7 @@ class SubscriptionModer(
                 3 -> "NR"
                 else -> if (imsRegistered) "Registered (transport hidden)" else "Not registered"
             },
+            imsTransportRes = imsTransportRes,
             serviceState = when (state?.state) {
                 ServiceState.STATE_IN_SERVICE -> "In service"
                 ServiceState.STATE_EMERGENCY_ONLY -> "Emergency only"
@@ -804,6 +862,7 @@ class SubscriptionModer(
                 ServiceState.STATE_POWER_OFF -> "Radio off"
                 else -> "Unknown"
             },
+            serviceStateRes = serviceStateRes,
             operatorName = runCatching { state?.operatorAlphaLong.orEmpty() }.getOrDefault(""),
             operatorNumeric = runCatching { state?.operatorNumeric.orEmpty() }.getOrDefault(""),
             roaming = state?.roaming,
@@ -913,7 +972,7 @@ class SubscriptionModer(
             editor.apply()
         }
 
-        val failedGates = mutableListOf<String>()
+        val failedGates = mutableListOf<GateLabel>()
         val requiredTypes =
             TelephonyManager.NETWORK_TYPE_BITMASK_LTE or TelephonyManager.NETWORK_TYPE_BITMASK_NR
         ROOT_FORCE_REASONS.forEach { (reason, label) ->
@@ -926,13 +985,13 @@ class SubscriptionModer(
             if (!accepted) failedGates += label
         }
         runCatching { setBandSelectionInternal(intArrayOf(), intArrayOf()) }
-            .onFailure { failedGates += "Automatic bands" }
+            .onFailure { failedGates += GateLabel(res = R.string.root_gate_auto_bands) }
         (ROOT_FORCE_PROPERTIES + ("persist.radio.is_vonr_enabled_$simSlotIndex" to "true")).forEach { (name, value) ->
-            if (!PrivilegeManager.setRootSystemProperty(name, value)) failedGates += name
+            if (!PrivilegeManager.setRootSystemProperty(name, value)) failedGates += GateLabel(text = name)
         }
         // resetIms can reload carrier state on recent Android builds, so restart first and publish
         // the force override afterwards.
-        runCatching { restartIMSRegistration() }.onFailure { failedGates += "IMS restart" }
+        runCatching { restartIMSRegistration() }.onFailure { failedGates += GateLabel(res = R.string.root_gate_ims_restart) }
         runCatching {
             publishBundle(persistForRoot = false) {
                 it.putIntArray(
@@ -950,7 +1009,7 @@ class SubscriptionModer(
                 it.putBoolean(CarrierConfigManager.KEY_HIDE_LTE_PLUS_DATA_ICON_BOOL, false)
                 it.putBoolean(CarrierConfigManager.KEY_SHOW_4G_FOR_LTE_DATA_ICON_BOOL, false)
             }
-        }.onFailure { failedGates += "Carrier configuration" }
+        }.onFailure { failedGates += GateLabel(res = R.string.root_gate_carrier_config) }
         settlePause(1_500)
         // CarrierConfig changes may cause Phone to recompute the carrier reason. Reassert every
         // readable reason after the broadcast, then verify the actual intersection below.
@@ -1026,7 +1085,7 @@ class SubscriptionModer(
     }
 
     fun requestNsaOnly(): Boolean {
-        saveChangeSnapshot("Forced NSA (LTE + NR)")
+        saveChangeSnapshot(R.string.root_snapshot_forced_nsa)
         rememberOriginalNrAvailability()
         updateCarrierConfig(
             CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY,
@@ -1036,7 +1095,7 @@ class SubscriptionModer(
     }
 
     fun requestSaOnly(): Boolean {
-        saveChangeSnapshot("Forced SA (NR only)")
+        saveChangeSnapshot(R.string.root_snapshot_forced_sa)
         rememberOriginalNrAvailability()
         updateCarrierConfig(
             CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY,
@@ -1046,7 +1105,7 @@ class SubscriptionModer(
     }
 
     fun requestAutomaticRadio(): Boolean {
-        saveChangeSnapshot("Restored automatic radio selection")
+        saveChangeSnapshot(R.string.root_snapshot_auto_radio)
         val prefs = context.getSharedPreferences(NETWORK_PREFS, Context.MODE_PRIVATE)
         val key = ORIGINAL_NR_AVAIL_PREFIX + subscriptionId
         if (prefs.contains(key)) {
@@ -1119,8 +1178,11 @@ class SubscriptionModer(
         nrBands: IntArray,
     ): Boolean {
         saveChangeSnapshot(
-            if (lteBands.isEmpty() && nrBands.isEmpty()) "Restored automatic band selection"
-            else "Restricted LTE/NR bands",
+            if (lteBands.isEmpty() && nrBands.isEmpty()) {
+                R.string.root_snapshot_auto_bands
+            } else {
+                R.string.root_snapshot_restricted_bands
+            },
         )
         return setBandSelectionInternal(lteBands, nrBands)
     }
@@ -1346,9 +1408,9 @@ class SubscriptionModer(
         check(PrivilegeManager.activeMode == PrivilegeMode.SHIZUKU) {
             "The Shizuku regional profile requires Shizuku mode"
         }
-        saveChangeSnapshot("Applied Shizuku regional 5G profile")
-        val failed = mutableListOf<String>()
-        val limitations = mutableListOf<String>()
+        saveChangeSnapshot(R.string.root_snapshot_shizuku_regional)
+        val failed = mutableListOf<GateLabel>()
+        val limitations = mutableListOf<GateLabel>()
         val phone = this.loadCachedInterface { telephony }
         val requiredTypes =
             TelephonyManager.NETWORK_TYPE_BITMASK_LTE or TelephonyManager.NETWORK_TYPE_BITMASK_NR
@@ -1362,10 +1424,10 @@ class SubscriptionModer(
             Log.i(TAG, "Automatic band reset is unavailable; preserving the current selection", it)
         }.getOrDefault(false)
         if (!automaticBandsRestored) {
-            limitations += "Automatic bands unchanged (modem API unavailable)"
+            limitations += GateLabel(res = R.string.root_limit_auto_bands_unchanged)
         }
         if (!runCatching { setRadioMode(1, recordChange = false) }.getOrDefault(false)) {
-            failed += "LTE + NR allowed-network policy"
+            failed += GateLabel(res = R.string.root_gate_lte_nr_policy)
         }
         val endcControlAvailable = runCatching {
             phone.isRadioInterfaceCapabilitySupported(
@@ -1380,19 +1442,22 @@ class SubscriptionModer(
                 )
             }.getOrNull()
             if (endcResult != TelephonyManager.ENABLE_NR_DUAL_CONNECTIVITY_SUCCESS) {
-                failed += "EN-DC control (result ${endcResult ?: "unreadable"})"
+                failed += GateLabel(
+                    res = R.string.root_gate_endc_control_result,
+                    args = listOf(endcResult?.toString() ?: "unreadable"),
+                )
             } else {
                 settlePause(500)
                 if (!runCatching { phone.isNrDualConnectivityEnabled(subscriptionId) }.getOrDefault(false)) {
-                    failed += "EN-DC enablement did not persist"
+                    failed += GateLabel(res = R.string.root_gate_endc_not_persisted)
                 }
             }
         } else if (endcControlAvailable == false) {
             Log.i(TAG, "The modem HAL does not expose configurable NR dual connectivity")
         } else {
-            failed += "EN-DC control status"
+            failed += GateLabel(res = R.string.root_gate_endc_status)
         }
-        runCatching { restartIMSRegistration() }.onFailure { failed += "IMS restart" }
+        runCatching { restartIMSRegistration() }.onFailure { failed += GateLabel(res = R.string.root_gate_ims_restart) }
         runCatching {
             publishBundle {
                 it.putIntArray(
@@ -1416,12 +1481,14 @@ class SubscriptionModer(
                 it.putBoolean(CarrierConfigManager.KEY_SHOW_WIFI_CALLING_ICON_IN_STATUS_BAR_BOOL, true)
                 it.putBoolean(CarrierConfigManager.KEY_SHOW_IMS_REGISTRATION_STATUS_BOOL, true)
             }
-        }.onFailure { failed += "Carrier configuration" }
+        }.onFailure { failed += GateLabel(res = R.string.root_gate_carrier_config) }
 
         settlePause(1_250)
         listOf(
-            TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER to "User network policy",
-            TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_CARRIER to "Carrier network policy",
+            TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER to
+                GateLabel(res = R.string.root_gate_user_policy),
+            TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_CARRIER to
+                GateLabel(res = R.string.root_gate_carrier_policy),
         ).forEach { (reason, label) ->
             val current = runCatching { phone.getAllowedNetworkTypesForReason(subscriptionId, reason) }
                 .getOrNull() ?: return@forEach
