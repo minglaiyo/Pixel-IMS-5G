@@ -71,7 +71,7 @@ class ControlStateTest {
     @Test
     fun aRejectedWriteDoesNotMoveTheControlToTheRequestedValue() {
         val before = ControlState(value = false, phase = ControlPhase.IDLE)
-        val after = before.reduce(WriteOutcome.Rejected(actual = false, reason = "refused"))
+        val after = before.reduce(WriteOutcome.Rejected(actual = false, reason = "refused", reasonRes = R.string.root_control_not_accepted))
 
         assertEquals(false, after.value)
         assertEquals(ControlPhase.FAILED, after.phase)

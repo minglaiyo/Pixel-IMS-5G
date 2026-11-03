@@ -28,8 +28,8 @@ class RootVoWifiStatusTest {
         )
 
         assertTrue(status.isVoWifiActive)
-        assertEquals("Wi-Fi preferred", status.modeLabel)
-        assertEquals("IWLAN (VoWiFi)", status.transportLabel)
+        assertEquals(R.string.root_vowifi_mode_wifi_preferred, status.modeLabel)
+        assertEquals(R.string.root_vowifi_transport_iwlan, status.transportLabel)
     }
 
     @Test
@@ -38,13 +38,13 @@ class RootVoWifiStatusTest {
             """
             {
               "subscriptionId": 1,
-              "failureReason": "IWLAN_IKE_INIT_TIMEOUT",
+              "failureReasonRes": ${R.string.root_vowifi_fail_ike_timeout},
               "message": "not active"
             }
             """.trimIndent(),
         )
 
-        assertEquals("IWLAN_IKE_INIT_TIMEOUT", status.failureReason)
-        assertEquals("Unknown", status.modeLabel)
+        assertEquals(R.string.root_vowifi_fail_ike_timeout, status.failureReasonRes)
+        assertEquals(R.string.root_label_unknown, status.modeLabel)
     }
 }

@@ -11,8 +11,8 @@ class ReleaseChangelogTest {
         val changelog = ReleaseChangelogCatalog.forVersion("v2.2.8")
 
         assertEquals("2.2.8", changelog?.version)
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("Radio log capture") })
-        assertTrue(changelog.orEmptyItems().any { it.tone == ChangelogTone.IMPORTANT && it.title.contains("Pixel 10 Pro XL") })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v228_title_1 })
+        assertTrue(changelog.orEmptyItems().any { it.tone == ChangelogTone.IMPORTANT && it.titleRes == R.string.changelog_v228_title_4 })
     }
 
     @Test
@@ -20,8 +20,8 @@ class ReleaseChangelogTest {
         val changelog = ReleaseChangelogCatalog.forVersion("v2.2.7")
 
         assertEquals("2.2.7", changelog?.version)
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("Liquid") })
-        assertTrue(changelog.orEmptyItems().any { it.tone == ChangelogTone.IMPORTANT && it.title.contains("Pixel 10 Pro XL") })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v227_title_1 })
+        assertTrue(changelog.orEmptyItems().any { it.tone == ChangelogTone.IMPORTANT && it.titleRes == R.string.changelog_v227_title_7 })
     }
 
     @Test
@@ -29,10 +29,10 @@ class ReleaseChangelogTest {
         val changelog = ReleaseChangelogCatalog.forVersion("v2.2.6")
 
         assertEquals("2.2.6", changelog?.version)
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("KernelSU") })
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("Magisk") })
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("callback") })
-        assertTrue(changelog.orEmptyItems().any { it.title.contains("evidence") })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v226_title_1 })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v226_title_1 })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v226_title_3 })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v226_title_4 })
     }
 
     @Test
@@ -40,7 +40,7 @@ class ReleaseChangelogTest {
         val changelog = ReleaseChangelogCatalog.forVersion("2.2.5")
 
         assertEquals("2.2.5", changelog?.version)
-        assertTrue(changelog?.items?.any { it.title.contains("KernelSU") } == true)
+        assertTrue(changelog?.items?.any { it.titleRes == R.string.changelog_v225_title_1 } == true)
     }
 
     @Test
@@ -49,7 +49,7 @@ class ReleaseChangelogTest {
 
         assertNotNull(changelog)
         assertEquals("1.0.6", changelog?.version)
-        assertTrue(changelog.orEmptyItems().any { it.title == "Small bug fixes" })
+        assertTrue(changelog.orEmptyItems().any { it.titleRes == R.string.changelog_v106_title_1 })
     }
 
     @Test
@@ -65,7 +65,7 @@ class ReleaseChangelogTest {
             )
 
         assertEquals(2, changelog?.items?.size)
-        assertEquals("New monitor", changelog?.items?.first()?.title)
+        assertEquals("New monitor", changelog?.items?.first()?.titleText)
         assertEquals(ChangelogTone.FIX, changelog?.items?.last()?.tone)
     }
 

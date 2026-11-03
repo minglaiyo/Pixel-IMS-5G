@@ -8,14 +8,14 @@ class LiveNetworkTest {
         val view = resolveLiveConnection(listOf(cell()), "41302", "LTE", 0,
             true, true, false)
         assertFalse(view.nrConnected)
-        assertEquals("5G advertised · LTE only", view.fiveGStatus)
-        assertTrue(view.explanation.contains("not reporting an EN-DC link"))
+        assertEquals(R.string.root_live_5g_advertised_lte_only, view.fiveGStatusRes)
+        assertEquals(R.string.root_live_expl_suffix_advertised_no_endc, view.explanationSuffixRes)
     }
 
     @Test fun explicitRestrictionTakesPrecedenceOverAvailabilityFlags() {
         val view = resolveLiveConnection(listOf(cell()), "41302", "LTE", 1,
             false, true, true)
-        assertEquals("5G restricted by the network", view.fiveGStatus)
+        assertEquals(R.string.root_live_5g_restricted, view.fiveGStatusRes)
     }
 
     private fun cell(rat: String = "LTE", band: String = "B3", channel: Int = 1725, pci: Int = 62,
@@ -48,10 +48,10 @@ class LiveNetworkTest {
         val cells = listOf(cell(), cell(band="B1", channel=525, registered=false, status=0),
             cell(band="n78", rat="NR", plmn="413-01", status=2))
         val view = resolveLiveConnection(cells, "41302", "LTE", 2, false, true, true)
-        assertEquals("4G connected", view.title)
+        assertEquals(R.string.root_live_title_4g_connected, view.titleRes)
         assertEquals(1, view.carriers.size)
         assertFalse(view.nrConnected)
-        assertEquals("5G available · not connected", view.fiveGStatus)
+        assertEquals(R.string.root_live_5g_available_not_connected, view.fiveGStatusRes)
     }
 
     @Test fun repeatedLteBandsArePreservedAsDifferentCarriers() {
@@ -59,29 +59,29 @@ class LiveNetworkTest {
             cell(band="B1", channel=400, pci=353, status=2))
         val view = resolveLiveConnection(cells, "41302", "LTE", 2, true, true, true)
         assertEquals("B3 + B1 + B1", view.bandCombination)
-        assertEquals("4G+ connected", view.title)
-        assertEquals(2, view.carriers.count { it.role == "Extra 4G carrier" })
+        assertEquals(R.string.root_live_title_4g_plus_connected, view.titleRes)
+        assertEquals(2, view.carriers.count { it.roleRes == R.string.root_role_extra_4g_carrier })
     }
 
     @Test fun nsaConnectedStateKeepsAnchorEvenWhenNrCellHidden() {
         val view = resolveLiveConnection(listOf(cell()), "41302", "LTE", 3, false, true, true)
-        assertEquals("5G NSA connected", view.title)
+        assertEquals(R.string.root_live_title_5g_nsa, view.titleRes)
         assertTrue(view.nrConnected)
-        assertEquals("4G anchor", view.carriers.first().role)
-        assertTrue(view.carriers.any { it.role == "5G carrier" && it.cell == null })
+        assertEquals(R.string.root_role_4g_anchor, view.carriers.first().roleRes)
+        assertTrue(view.carriers.any { it.roleRes == R.string.root_role_5g_carrier && it.cell == null })
     }
 
     @Test fun saDoesNotInventLteAnchor() {
         val view = resolveLiveConnection(listOf(cell(rat="NR", band="n78")), "41302", "NR", 0, false, true, true)
-        assertEquals("5G SA connected", view.title)
-        assertFalse(view.carriers.any { it.role == "4G anchor" })
+        assertEquals(R.string.root_live_title_5g_sa, view.titleRes)
+        assertFalse(view.carriers.any { it.roleRes == R.string.root_role_4g_anchor })
     }
 
     @Test fun caFlagDoesNotInventExtraBands() {
         val view = resolveLiveConnection(listOf(cell()), "41302", "LTE", 2, true, true, true)
-        assertEquals("4G+ reported", view.title)
+        assertEquals(R.string.root_live_title_4g_plus_reported, view.titleRes)
         assertEquals("B3", view.bandCombination)
-        assertTrue(view.carrierNote.contains("not reporting"))
+        assertEquals(R.string.root_live_note_ca_no_detail, view.carrierNoteRes)
     }
 
     @Test fun emptyRegisteredSetDoesNotPromoteNeighbourToServing() {
