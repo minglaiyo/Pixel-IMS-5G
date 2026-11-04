@@ -471,8 +471,9 @@
     <string name="radio_logs_root_only">需要 Root 模式。Shizuku 无法读取 RIL 或调制解调器日志文件夹。</string>
     <string name="radio_logs_saved">已保存 %1$s（%2$d 个文件，%3$s）</string>
     <string name="radio_logs_no_ril">在 %1$s 中没有找到 RIL 日志文件。此版本可能已关闭 RIL 日志记录；没有任何内容被更改。</string>
-    <string name="radio_logs_endc_events">EN-DC 能力事件（最新的在最后）</string>
-    <string name="radio_logs_endc_none">采集到的日志中没有 EN-DC 能力事件。</string>
+    <string name="radio_logs_endc_events">5G 与 EN-DC 时间线（仅变化，最新的在最后）</string>
+    <string name="radio_logs_endc_none">采集到的日志中没有 5G 或 EN-DC 变化。</string>
+    <string name="radio_logs_last_boot">上次启动：%1$s</string>
     <string name="radio_logs_uecap">调制解调器能力日志</string>
     <string name="radio_logs_skipped">已跳过 %1$d 个文件；请查看压缩包里的 00-summary.txt。</string>
     <string name="radio_logs_share">分享日志压缩包</string>
@@ -887,6 +888,12 @@ Timing advance：时间补偿，不是到基站的准确距离。
     <string name="changelog_v228_detail_3">IMSI、ICCID、IMEI、电话号码和 IP 地址在离开应用之前都会被打码。开启打码时，无法打码的二进制 RIL 文件会被直接跳过。</string>
     <string name="changelog_v228_title_4">Pixel 10 Pro XL 的 5G 问题还在排查</string>
     <string name="changelog_v228_detail_4">这个版本只是加了排查工具，还没有修好 Pixel 10 Pro XL 在别机能用 5G 的地方却一直停在 LTE 上的问题。</string>
+    <string name="changelog_v229_title_1">射频日志摘要更清楚了</string>
+    <string name="changelog_v229_detail_1">5G 与 EN-DC 时间线现在只列出真正的变化：每张 SIM 的 NR 上报和 EN-DC 可用状态及服务小区、5G 状态切换和状态栏 5G 变化。普通的注册行不再冒充成事件出现。</string>
+    <string name="changelog_v229_title_2">上次启动与能力日志的时间</string>
+    <string name="changelog_v229_detail_2">抓包会显示手机上次启动的时间，并把每条基带能力日志标记为启动时、启动后或启动前，这样启动过程中写下的能力就很容易看出来。</string>
+    <string name="changelog_v229_title_3">Pixel 10 Pro XL 的 5G 问题还在排查</string>
+    <string name="changelog_v229_detail_3">这个版本改进了诊断抓包，但还没有修好 Pixel 10 Pro XL 在别机能用 5G 的地方却一直停在 LTE 上的问题。</string>
     <string name="changelog_v227_title_1">液态玻璃全新设计</string>
     <string name="changelog_v227_detail_1">主页和网络页彻底重做：半透明玻璃面板、更清晰的排版和大白话说明，浅色深色都有。</string>
     <string name="changelog_v227_title_2">载波聚合实时可见</string>

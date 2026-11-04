@@ -27,6 +27,27 @@ data class InstalledChangelog(
 object ReleaseChangelogCatalog {
     fun forVersion(version: String): InstalledChangelog? =
         when (version.removePrefix("v")) {
+            "2.2.9" ->
+                InstalledChangelog(
+                    version = "2.2.9",
+                    items = listOf(
+                        ChangelogItem(
+                            titleRes = R.string.changelog_v229_title_1,
+                            detailRes = R.string.changelog_v229_detail_1,
+                            tone = ChangelogTone.FIX,
+                        ),
+                        ChangelogItem(
+                            titleRes = R.string.changelog_v229_title_2,
+                            detailRes = R.string.changelog_v229_detail_2,
+                            tone = ChangelogTone.IMPROVEMENT,
+                        ),
+                        ChangelogItem(
+                            titleRes = R.string.changelog_v229_title_3,
+                            detailRes = R.string.changelog_v229_detail_3,
+                            tone = ChangelogTone.IMPORTANT,
+                        ),
+                    ),
+                )
             "2.2.8" ->
                 InstalledChangelog(
                     version = "2.2.8",
